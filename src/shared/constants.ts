@@ -4768,7 +4768,15 @@ export const RUNNER_WINDOWS_COMMAND_MAX_CHARS = 32_767
 // Bounds on the extension's own scheduler records and user-level runner config.
 export const TEAM_SCHED_ID_MAX_CHARS = 128
 export const TEAM_SCHED_TEXT_MAX_CHARS = 8000
+/** Said by a check's slots and its process alike, so it rides neither one's model text. */
+export const TEAM_CHECK_HOST_BUSY =
+  'this computer stayed short of memory or processor time for as long as the check may run, so it was not run: run it again when it has eased'
 export const TEAM_WRITE_SET_MAX = 256
+/**
+A landing's record holds one entry per changed file (D121: no bound of ours on how many). This bounds
+only reading a broken file into memory, at the most git's runner would hand back for the same tree.
+*/
+export const TEAM_LANDING_RECORD_MAX_BYTES = 256 * 1024 * 1024
 export const TEAM_SCHED_HISTORY_MAX = 256
 export const RUNNER_CONFIG_MAX = 32
 export const RUNNER_MAX_JOBS = 64
@@ -10422,6 +10430,8 @@ export const TEAM_PROCESS_MODEL_TEXT = {
   hostJournalForeign: 'this window cannot take over another window’s team records',
   hostBusy:
     'this computer is short of memory or processor time, so no new team agent was started: run the task again when it has eased',
+  hostCheckFailed:
+    'the check could not be run to its end, so there is no result ({code}): run it again; the Muse Spark log has the details',
   hostLaunchFailed:
     'the team agent’s process could not be started ({code}); the Muse Spark log has the details',
 } as const

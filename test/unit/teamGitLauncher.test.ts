@@ -39,8 +39,9 @@ describe('a governed git that could not run', () => {
 
   it('is no git failure, and keeps its own type and words', async () => {
     const fixture = await fixtureFor('task-unrun')
+    // One that writes: a read owns no temp root, so on POSIX it needs no such helper and still runs.
     const failure = await failureOf(
-      processTeamGit(process.platform)(['rev-parse', '--verify', 'HEAD'], fixture.root),
+      processTeamGit(process.platform)(['hash-object', '-w', '--stdin'], fixture.root, 'bytes'),
     )
     expect(isTeamGitError(failure)).toBe(false)
     expect(isLauncherFailure(failure)).toBe(true)

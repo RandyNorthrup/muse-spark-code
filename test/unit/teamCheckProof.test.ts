@@ -5,14 +5,16 @@
 // where nothing can (macOS, Linux with no user systemd) a check takes a folder of its own.
 import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { WorkerRolePolicy } from '../../src/core/team/workers/workerTypes'
+import { runProgram } from '../../src/host/processTree'
 import { checkProcessOver } from '../../src/host/team/checkProcess'
 import { CheckSlots } from '../../src/host/team/checkSlots'
 import {
   isSeenScopeGone,
+  scopeGroupOf,
   seenScopeEvents,
   startNativeTeamLifetime,
   type TeamProcessLifetime,
@@ -21,18 +23,21 @@ import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
 import {
   HOOK_CONFIG_MAX_BYTES,
+  TEAM_CHECK_HOST_BUSY,
+  TEAM_PROCESS_MODEL_TEXT,
   UI_TEXT,
   type CheckCommandSetting,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import { checkProcessProvedByExit } from './helpers/checkProcessProvedByExit'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
 import { governorWindow } from './helpers/governorWindow'
+import { readJobSource } from './helpers/jobSource'
 import { realCheckPorts, doesSystemProveEnds } from './helpers/teamCheckPorts'
 import { fixtureGit } from './helpers/teamLandingFixture'
 import { isProcessAlive } from './helpers/teamRealRig'
-import { callRunChecks, replyText } from './helpers/workerCheckRpc'
+import { callRunChecks, replyText, type Reply } from './helpers/workerCheckRpc'
 import { liveSamplerSuite } from './resourceHarness'
 
 setUiText(EN, 'en')
@@ -90,8 +95,12 @@ async function scratch(prefix: string): Promise<string> {
   return root
 }
 
-async function realLifetime(root: string): Promise<TeamProcessLifetime> {
+async function realLifetime(
+  root: string,
+  isHostBusy: () => boolean = () => false,
+): Promise<TeamProcessLifetime> {
   const owner = createWindowIdentity(Date.now())
+  const systemRoot = process.env['SystemRoot']
   const started = await startNativeTeamLifetime({
     journal: createTeamJournal({
       storageDirectory: path.join(root, 'storage'),
@@ -100,8 +109,18 @@ async function realLifetime(root: string): Promise<TeamProcessLifetime> {
       maxRecordBytes: HOOK_CONFIG_MAX_BYTES,
       platform: process.platform,
     }),
-    isHostBusy: () => false,
+    isHostBusy,
     killGraceMs: 1000,
+    ...(process.platform === 'win32' &&
+      systemRoot !== undefined && {
+        windows: {
+          storageDir: path.join(root, 'job'),
+          systemRoot,
+          readJobSource,
+          run: runProgram,
+          log: () => undefined,
+        },
+      }),
   })
   cleanups.push(async () => {
     await started.lifetime.dispose()
@@ -186,7 +205,51 @@ describe.runIf(isPosix)('a retirement', () => {
   )
 })
 
+describe('which scope a process is in', () => {
+  const UNIT = 'muse-spark-one.scope'
+  const GROUP = `/user.slice/user-1000.slice/user@1000.service/app.slice/${UNIT}`
+
+  it('is what the kernel says, once it says this unit', () => {
+    expect(scopeGroupOf(UNIT, `0::${GROUP}\n`)).toBe(GROUP)
+    // Still where it started: systemd has not moved it yet.
+    expect(scopeGroupOf(UNIT, '0::/user.slice/user-1000.slice/session-1.scope\n')).toBeUndefined()
+    // Another launch's, whose name ends the same way.
+    expect(scopeGroupOf(UNIT, `0::/a/not-${UNIT}\n`)).toBeUndefined()
+    expect(scopeGroupOf(UNIT, `0::/../${UNIT}\n`)).toBeUndefined()
+    expect(scopeGroupOf(UNIT, '')).toBeUndefined()
+    // A hybrid hierarchy names it on its own line, which proves no empty cgroup.
+    const hybrid = `1:name=systemd:${GROUP}\n0::/\n`
+    expect(scopeGroupOf(UNIT, hybrid)).toBe(GROUP)
+    expect(seenScopeEvents(GROUP, hybrid)).toBeUndefined()
+  })
+})
+
 describe.runIf(process.platform === 'linux' && doesProve)('a real Linux scope', () => {
+  it(
+    'confirms every launch a team can reach at once',
+    async () => {
+      const root = await scratch('muse-proof-many-')
+      const lifetime = await realLifetime(root)
+      // A team runs a worker and a check per logical CPU, at the most.
+      const atOnce = 2 * availableParallelism()
+      const launches = await Promise.allSettled(
+        Array.from({ length: atOnce }, async () => {
+          const launched = await lifetime.launch({
+            command: process.execPath,
+            args: ['-e', 'setInterval(() => undefined, 1000)'],
+            cwd: root,
+            taskId: 'many',
+            env: { PATH: process.env['PATH'] },
+            priority: 'normal',
+          })
+          return await launched.retire()
+        }),
+      )
+      expect(launches.filter((launch) => launch.status === 'rejected')).toEqual([])
+    },
+    LONG_MS,
+  )
+
   it(
     'proves a command that ended by itself, however long it ran',
     async () => {
@@ -364,6 +427,10 @@ const aCheck = (root: string, name: string, code: number): CheckCommandSetting =
   name,
   command: `node '${path.join(root, 'check.js')}' ${String(code)}`,
 })
+/** A reply that is an answer; a red one says what it said instead. */
+const expectAnswered = (reply: Reply): void => {
+  expect(reply.body?.result?.isError, `the reply was: ${replyText(reply)}`).not.toBe(true)
+}
 const leaving = (root: string, mode: string): CheckCommandSetting => ({
   name: 'leaves',
   command: `node '${path.join(root, 'leaves-a-child.js')}' ${mode} '${path.join(root, `${mode}.pid`)}'`,
@@ -384,7 +451,7 @@ describe("a worker's run_checks", () => {
         checks: (root) => [aCheck(root, 'passes', 0), aCheck(root, 'fails', 3)],
       })
       const passed = await callRunChecks(endpoint, { names: ['passes'] })
-      expect(passed.body?.result?.isError).not.toBe(true)
+      expectAnswered(passed)
       expect(replyText(passed)).toContain('passes: exit code 0')
       const failed = await callRunChecks(endpoint, { names: ['fails'] })
       expect(replyText(failed)).toMatch(/fails: exit code [1-9]/u)
@@ -402,8 +469,8 @@ describe("a worker's run_checks", () => {
         checks: (at) => [aCheck(at, 'passes', 0)],
         setupCommand: (at) => `node '${path.join(at, 'setup.js')}'`,
       })
-      await callRunChecks(endpoint, { names: ['passes'] })
-      await callRunChecks(endpoint, { names: ['passes'] })
+      expectAnswered(await callRunChecks(endpoint, { names: ['passes'] }))
+      expectAnswered(await callRunChecks(endpoint, { names: ['passes'] }))
       const folders = await logLines(path.join(root, 'ran.log'))
       expect(folders).toHaveLength(2)
       expect(new Set(folders).size).toBe(doesProve ? 1 : 2)
@@ -453,41 +520,200 @@ describe("a worker's run_checks", () => {
   )
 })
 
+/** Blocks this thread, as a machine under load does: timers and pipes wait together. */
+function stall(ms: number): void {
+  const end = performance.now() + ms
+  while (performance.now() < end) {
+    // Spinning on purpose: nothing else in this process may run meanwhile.
+  }
+}
+
+/** One folder's real slots, with a job pointed at the repository itself. */
+async function slotsOverARepository(prefix: string, isHostBusy: boolean, timeoutMs: number) {
+  const root = await scratch(prefix)
+  const repo = path.join(root, 'repo')
+  await mkdir(repo)
+  const slots = new CheckSlots({
+    file: 'git',
+    run: checkProcessProvedByExit(),
+    env: fixtureGitEnvironment(process.env),
+    root: path.join(root, 'slots'),
+    repositoryRoot: repo,
+    platform: process.platform,
+    count: 1,
+    setupCommand: '',
+    cacheKey: 'guard',
+    installPaths: [],
+    shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
+    shellArgs: (command) => [process.platform === 'win32' ? '/c' : '-c', command],
+    isTrusted: () => true,
+    isHostBusy: () => isHostBusy,
+  })
+  const job = {
+    runId: 'guard',
+    cwd: repo,
+    command: 'true',
+    timeoutMs,
+    commandClass: 'declared' as const,
+    labels: [],
+    preferredRunners: [],
+    lockfiles: [],
+    signal: new AbortController().signal,
+    onOutput: () => undefined,
+  }
+  return { slots, job }
+}
+
+const NODE_EXITS_0 = { file: process.execPath, args: ['-e', 'process.exit(0)'], env: process.env }
+
+describe('a check on a machine under load', () => {
+  it(
+    'waits while the host is busy, then runs and answers',
+    async () => {
+      const root = await scratch('muse-load-busy-')
+      const asked = { times: 0 }
+      const lifetime = await realLifetime(root, () => {
+        asked.times += 1
+        return asked.times <= 2
+      })
+      const result = await checkProcessOver(lifetime)({
+        ...NODE_EXITS_0,
+        cwd: root,
+        timeoutMs: 60_000,
+      })
+      expect(result.exitCode).toBe(0)
+      expect(asked.times).toBeGreaterThan(2)
+    },
+    LONG_MS,
+  )
+
+  it(
+    'says why when the host stays busy for as long as the check may run',
+    async () => {
+      const root = await scratch('muse-load-stays-')
+      const lifetime = await realLifetime(root, () => true)
+      await expect(
+        checkProcessOver(lifetime)({ ...NODE_EXITS_0, cwd: root, timeoutMs: 50 }),
+      ).rejects.toThrow(TEAM_CHECK_HOST_BUSY)
+    },
+    LONG_MS,
+  )
+
+  it(
+    'stops waiting when the caller stops',
+    async () => {
+      const root = await scratch('muse-load-stop-')
+      const lifetime = await realLifetime(root, () => true)
+      const stop = new AbortController()
+      const running = checkProcessOver(lifetime)({
+        ...NODE_EXITS_0,
+        cwd: root,
+        timeoutMs: 600_000,
+        signal: stop.signal,
+      })
+      stop.abort()
+      await expect(running).rejects.toThrow(/abort/iu)
+    },
+    LONG_MS,
+  )
+
+  it(
+    'says in words what a bare code would not, with the code for the log',
+    async () => {
+      const root = await scratch('muse-load-words-')
+      const lifetime = await realLifetime(root)
+      await lifetime.dispose()
+      await expect(
+        checkProcessOver(lifetime)({ ...NODE_EXITS_0, cwd: root, timeoutMs: 30_000 }),
+      ).rejects.toThrow(
+        fill(TEAM_PROCESS_MODEL_TEXT.hostCheckFailed, { code: 'TEAM_PROCESS_LIFETIME_DISPOSED' }),
+      )
+    },
+    LONG_MS,
+  )
+
+  it(
+    'slots wait for the host too, and say why rather than that they are full',
+    async () => {
+      const { slots, job } = await slotsOverARepository('muse-load-slots-', true, 50)
+      await expect(slots.run(job)).rejects.toThrow(TEAM_CHECK_HOST_BUSY)
+    },
+    LONG_MS,
+  )
+
+  // Windows' confirmation is a timer against a pipe. POSIX reads the process, so a stalled thread
+  // finds it confirmed; the retry it would take is the same lines.
+  it.runIf(process.platform === 'win32')(
+    'starts again a launch that missed its confirmation: its command never ran',
+    async () => {
+      const root = await scratch('muse-load-confirm-')
+      const lifetime = await realLifetime(root)
+      const launches = { count: 0 }
+      const stalled: TeamProcessLifetime = {
+        ...lifetime,
+        launch: (request) => {
+          launches.count += 1
+          const isFirst = launches.count === 1
+          return lifetime.launch({
+            ...request,
+            attach: (spawned) => {
+              // Past the 5 s before this thread can read the helper's confirmation.
+              if (isFirst) stall(5500)
+              request.attach?.(spawned)
+            },
+          })
+        },
+      }
+      const result = await checkProcessOver(stalled)({
+        ...NODE_EXITS_0,
+        cwd: root,
+        timeoutMs: 60_000,
+      })
+      expect(result.exitCode).toBe(0)
+      expect(launches.count).toBe(2)
+    },
+    LONG_MS,
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'keeps the answer when the helper is slow to close after proving the end',
+    async () => {
+      const root = await scratch('muse-load-close-')
+      const lifetime = await realLifetime(root)
+      const held: { stream?: NodeJS.ReadableStream } = {}
+      const contained = await lifetime.launch({
+        command: process.execPath,
+        args: ['-e', "console.log('out'); process.exit(0)"],
+        cwd: root,
+        env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
+        taskId: 'slow-close',
+        priority: 'normal',
+        // A reader that never reads: the pipe stays open on this side, so 'close' does not come.
+        attach: (spawned) => {
+          held.stream = spawned.stdout
+          spawned.stdout.on('readable', () => undefined)
+        },
+      })
+      await new Promise<void>((resolve) => {
+        if (contained.child.exitCode === null)
+          contained.child.once('exit', () => {
+            resolve()
+          })
+        else resolve()
+      })
+      const end = await contained.retire()
+      expect(end).toMatchObject({ childExited: true, descendants: 'proved' })
+      held.stream?.resume()
+    },
+    LONG_MS,
+  )
+})
+
 describe("the slots' refusals", () => {
   it(
     'do not say an attempt has not stopped when a check is pointed at the repository itself',
     async () => {
-      const root = await scratch('muse-proof-guard-')
-      const repo = path.join(root, 'repo')
-      await mkdir(repo)
-      const slots = new CheckSlots({
-        file: 'git',
-        run: checkProcessProvedByExit(),
-        env: fixtureGitEnvironment(process.env),
-        root: path.join(root, 'slots'),
-        repositoryRoot: repo,
-        platform: process.platform,
-        count: 1,
-        setupCommand: '',
-        cacheKey: 'guard',
-        installPaths: [],
-        shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
-        shellArgs: (command) => [process.platform === 'win32' ? '/c' : '-c', command],
-        isTrusted: () => true,
-        isHostBusy: () => false,
-      })
-      const job = {
-        runId: 'guard',
-        cwd: repo,
-        command: 'true',
-        timeoutMs: 30_000,
-        commandClass: 'declared' as const,
-        labels: [],
-        preferredRunners: [],
-        lockfiles: [],
-        signal: new AbortController().signal,
-        onOutput: () => undefined,
-      }
+      const { slots, job } = await slotsOverARepository('muse-proof-guard-', false, 30_000)
       await expect(slots.run(job)).rejects.toThrow(UI_TEXT.teamRunners.testFailed)
       expect(slots.states()[0]).toMatchObject({ busy: false, uncertain: false })
     },

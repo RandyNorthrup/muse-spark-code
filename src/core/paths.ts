@@ -4,10 +4,15 @@
 
 import path from 'node:path'
 
-export function isSamePath(left: string, right: string, platform: NodeJS.Platform): boolean {
+/** What two absolute paths share exactly when they name the same file: a set's key. */
+export function samePathKey(name: string, platform: NodeJS.Platform): string {
   return platform === 'win32'
-    ? path.win32.normalize(left).toLowerCase() === path.win32.normalize(right).toLowerCase()
-    : path.posix.normalize(left) === path.posix.normalize(right)
+    ? path.win32.normalize(name).toLowerCase()
+    : path.posix.normalize(name)
+}
+
+export function isSamePath(left: string, right: string, platform: NodeJS.Platform): boolean {
+  return samePathKey(left, platform) === samePathKey(right, platform)
 }
 
 /** Whether absolute `candidate` is `folder` itself or somewhere under it, by the same rules. */

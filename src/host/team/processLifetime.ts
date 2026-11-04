@@ -20,7 +20,7 @@ import path from 'node:path'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
-import { withDeadline } from '../../core/timeouts'
+import { DeadlineError, withDeadline } from '../../core/timeouts'
 
 /** C1/T attach the reserved permit to their registry; no second admission or sampler. */
 export interface TeamProcessRegistryPort {
@@ -68,8 +68,6 @@ import type { CoreLogger } from '../../core/logging'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
-/** How long a held child gets to show up in its scope; systemd moves it as the unit starts. */
-const SCOPE_SEEN_WAIT_MS = 1000
 const LAUNCH_GATE_FD = 3
 
 /** A separate team MSP host, never the conversation's host. W supplies the
@@ -424,7 +422,7 @@ export function createTeamProcessLifetime(options: {
           // Confirmation/journal failure must not hide a child whose retirement is uncertain.
           failedChildren.add(launched)
           lifecycle.retire()
-          await launched.retire()
+          await retireInTime(launched)
           throw error
         }
       })()
@@ -487,6 +485,39 @@ const isNoHierarchy = (error: unknown): boolean => isUnreadable(error) || isMiss
 /** Missing, or (ENODEV) a file of a cgroup being removed while it is read. */
 const isGoingFile = (error: unknown): boolean =>
   isMissingPath(error) || errnoCode(error) === 'ENODEV'
+
+const isDeadlinePassed = (error: unknown): boolean => error instanceof DeadlineError
+
+/** A failed launch's child: one slow to go stays for dispose, and what stopped the launch is said. */
+async function retireInTime(launched: Pick<ContainedTeamChild, 'retire'>): Promise<void> {
+  try {
+    await launched.retire()
+  } catch (error: unknown) {
+    if (!isDeadlinePassed(error)) throw error
+  }
+}
+
+/** Where a process's membership cannot be read because it has gone: nothing to say about it yet. */
+const isProcessGone = (error: unknown): boolean =>
+  isMissingPath(error) || errnoCode(error) === 'ESRCH'
+
+async function membershipOf(pid: number): Promise<string> {
+  try {
+    return await readFile(`/proc/${String(pid)}/cgroup`, 'utf8')
+  } catch (error: unknown) {
+    if (!isProcessGone(error)) throw error
+    return ''
+  }
+}
+
+/** The path of the cgroup `unit` made, once the kernel has this process in it. */
+export function scopeGroupOf(unit: string, membership: string): string | undefined {
+  for (const line of membership.split('\n')) {
+    const group = line.slice(line.indexOf(':', line.indexOf(':') + 1) + 1)
+    if (group.startsWith('/') && group.endsWith(`/${unit}`) && !group.includes('..')) return group
+  }
+  return undefined
+}
 
 /** The scope's `cgroup.events`, if the held child is really in it. A scope never seen proves nothing. */
 export function seenScopeEvents(
@@ -704,8 +735,6 @@ export async function createNativeTeamProcessDriver(options: {
       }
       const confirmation = (async (): Promise<LaunchConfirmation> => {
         const deadline = performance.now() + NATIVE_CONFIRM_MS
-        const scopeDeadline = performance.now() + SCOPE_SEEN_WAIT_MS
-        const isScopeWaitOver = () => performance.now() >= scopeDeadline
         while (performance.now() < deadline) {
           if (child.pid === undefined) {
             await exited
@@ -714,28 +743,18 @@ export async function createNativeTeamProcessDriver(options: {
           const observed = await observer.observe(child.pid)
           if (observed !== undefined) {
             if (scope !== undefined) {
-              const rawGroup = await runProgram(
-                scope.systemctl,
-                ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-                scopeEnv,
-              )
-              const group = rawGroup.trim()
-              if (group === '' && !state.isExited) {
+              // Asked of the kernel, not of systemd: `systemd-run` moves the held child into the
+              // scope and only then runs it. Polling `systemctl show` here, every launch at once,
+              // kept the user manager from starting the scopes it was being asked about.
+              const membership = await membershipOf(child.pid)
+              const group = scopeGroupOf(unit, membership)
+              if (group === undefined) {
+                if (state.isExited) throw new Error('TEAM_SCOPE_NOT_READY')
                 await delay(NATIVE_POLL_MS)
                 continue
               }
-              if (!group.startsWith('/') || group.includes('..'))
-                throw new Error('TEAM_SCOPE_NOT_READY')
               state.cgroup = `${CGROUP_ROOT}${group}/cgroup.events`
-              // Asked of the kernel, not the unit: the held child is in it and its file is there.
-              const seen = seenScopeEvents(
-                group,
-                await readFile(`/proc/${String(child.pid)}/cgroup`, 'utf8'),
-              )
-              if (seen === undefined && !state.isExited && !isScopeWaitOver()) {
-                await delay(NATIVE_POLL_MS)
-                continue
-              }
+              const seen = seenScopeEvents(group, membership)
               if (seen !== undefined && (await canRead(seen))) state.scopeEvents = seen
             }
             return confirmationSchema.parse({
@@ -1109,6 +1128,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           { once: true },
         )
       })
+      const endSeen = (): Retirement | undefined => result.end
       const confirm = (value: LaunchConfirmation) => {
         result.confirmation = value
         events.dispatchEvent(new Event('confirmed'))
@@ -1264,8 +1284,14 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         async retire() {
           lifecycle.retire()
           if (result.end !== undefined) {
-            await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
-            return await ended
+            // END proved the job empty. What is left is the helper closing, which a busy machine
+            // can make slow, and a command's answer is not lost to that.
+            try {
+              await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
+            } catch (error: unknown) {
+              if (!isDeadlinePassed(error)) throw error
+            }
+            return result.end
           }
           if (send === undefined) {
             // This is our own spawned helper, still awaiting the control gate.
@@ -1291,16 +1317,24 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
                 if (result.end !== undefined) return
                 // A held launch already received STOP through lifecycle.retire.
                 // Await that write; a second STOP can hit its now-closed pipe.
-                const stopping = heldCancellation ?? send?.('STOP')
-                void stopping?.catch(reject)
+                // A helper already gone has nothing to stop: its close is what is waited for.
+                const stopping =
+                  heldCancellation ?? (child.exitCode === null ? send?.('STOP') : undefined)
+                const rejectWhileRunning = (error: Error): void => {
+                  if (child.exitCode === null) reject(error)
+                }
+                void stopping?.catch(rejectWhileRunning)
               }),
               NATIVE_CONFIRM_MS,
               'TEAM_WINDOWS_RETIREMENT_TIMEOUT',
             )
+          } catch (error: unknown) {
+            // END arrived while this waited: the proof stands however slowly the helper closes.
+            if (endSeen() === undefined || !isDeadlinePassed(error)) throw error
           } finally {
             failure.abort()
           }
-          return await ended
+          return endSeen() ?? (await ended)
         },
       }
     },

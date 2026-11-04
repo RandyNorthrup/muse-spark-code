@@ -2,7 +2,11 @@ import * as z from 'zod/mini'
 import path from 'node:path'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { UI_TEXT, GIT_METADATA_OPTIONS, HOOK_CONFIG_MAX_BYTES } from '../../shared/constants'
+import {
+  UI_TEXT,
+  GIT_METADATA_OPTIONS,
+  TEAM_LANDING_RECORD_MAX_BYTES,
+} from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { applyTeamMerge, TeamLanding, type LandingIntent } from '../../core/team/teamMerge'
@@ -15,9 +19,15 @@ import type {
 } from '../../core/team/teamHostService'
 import type { TeamGit } from '../../core/team/teamGit'
 import type { GitProcess } from '../git'
-import { isSamePath } from '../../core/paths'
+import { samePathKey } from '../../core/paths'
 import { canonicalPath, errnoCode } from '../canonicalPath'
-import { StagingCopy, checkIdentity, type TeamCheckIdentity } from './stagingCopy'
+import {
+  StagingCopy,
+  checkIdentity,
+  type LandingFacts,
+  type TeamCheckIdentity,
+  type TeamTreeReading,
+} from './stagingCopy'
 import {
   LandingJournal,
   hasOpenLanding as journalHasOpenLanding,
@@ -91,7 +101,7 @@ function createLandingStore(
       storageDirectory: storage,
       owner: recordOwner,
       authority,
-      maxRecordBytes: HOOK_CONFIG_MAX_BYTES,
+      maxRecordBytes: TEAM_LANDING_RECORD_MAX_BYTES,
       platform,
     })
   holder.store = storeFor(owner)
@@ -186,10 +196,10 @@ recovery asks.
 function landingJournalPorts(
   journal: LandingJournal,
   access: { readonly forward: LandingFiles; readonly back: LandingFiles },
-  around: Pick<ConstructorParameters<typeof TeamLanding>[0], 'prepare' | 'close'>,
+  around: Pick<ConstructorParameters<typeof TeamLanding>[0], 'prepare' | 'close' | 'checkBatch'>,
 ): Pick<
   ConstructorParameters<typeof TeamLanding>[0],
-  'prepare' | 'close' | 'replace' | 'recover' | 'undo'
+  'prepare' | 'close' | 'checkBatch' | 'replace' | 'recover' | 'undo'
 > {
   return {
     ...around,
@@ -236,6 +246,25 @@ async function canonicalLandingFolders(
   return { root: await canonicalPath(deps.root), storage: await canonicalPath(deps.storage) }
 }
 
+/**
+Git's facts for one landing: the reading under its lock leaves them, and every guard and roll-back
+after it judges modes by them. Reached first by a roll-back, they are taken once, then.
+*/
+function landingFacts(staging: StagingCopy, root: string) {
+  let kept: Promise<LandingFacts> | undefined
+  return {
+    read: (): Promise<LandingFacts> => {
+      kept ??= (async () => await staging.fileModes(root, await staging.head(root)))()
+      return kept
+    },
+    reading: async (folder: string): Promise<TeamTreeReading> => {
+      const reading = await staging.reading(folder)
+      kept = Promise.resolve(reading.facts)
+      return reading
+    },
+  }
+}
+
 /** What Windows answers a rename or removal over a file a program holds. */
 const HELD_CODES: ReadonlySet<string> = new Set(['EPERM', 'EBUSY', 'EACCES'])
 
@@ -270,29 +299,36 @@ export async function landTeamTask(
   const owner = policy.owner
   const { store: journalStore, authority } = createLandingStore(storage, owner, deps.platform)
   const journal = storeLandingJournal(() => journalStore)
+  const changed = new Set(
+    (outcome.changedFiles ?? []).map((name) =>
+      samePathKey(path.resolve(root, name), deps.platform),
+    ),
+  )
   const validateTarget = async (file: string) => {
     admit()
     await policy.validateTarget(file)
+    admit()
+    if (!changed.has(samePathKey(file, deps.platform)))
+      throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
+  }
+  /** The worker's ref: read before the first write and after the last, whatever the batch's size. */
+  const checkRef = async () => {
     admit()
     const actual = new TextDecoder()
       .decode(await runGit(['rev-parse', '--verify', agentsRef], root))
       .trim()
     admit()
-    if (
-      actual !== branchHead ||
-      (outcome.changedFiles ?? []).every(
-        (name) => !isSamePath(path.resolve(root, name), file, deps.platform),
-      )
-    )
-      throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
+    if (actual !== branchHead) throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
   }
-  const access = landingFileAccess(root, staging, { validateTarget })
+  const facts = landingFacts(staging, root)
+  const access = landingFileAccess(root, staging, { validateTarget, facts: facts.read })
   // Trust still binds a roll-back; the abort that stopped the landing does not.
   const back = landingFileAccess(root, staging, {
     validateTarget: async (file) => {
       if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
       await policy.validateTarget(file)
     },
+    facts: facts.read,
   })
   const retention = { copy: false }
   try {
@@ -373,7 +409,7 @@ export async function landTeamTask(
       windowInstanceId: owner.instanceId,
       canonicalRoot: canonicalPath,
       hasOpenLanding: (canonical) => journalHasOpenLanding(journalStore, canonical),
-      snapshot: (folder) => staging.snapshot(folder),
+      snapshot: facts.reading,
       checkIdentity: () => Promise.resolve(checkIdentity(policy.checks())),
       invalidate: (admission) =>
         journalStore.write(
@@ -408,14 +444,16 @@ export async function landTeamTask(
         { forward: access, back },
         {
           prepare: async (intent) => {
-            admit()
+            await checkRef()
             retention.copy = true
             await journal.prepare(intent)
+            access.expect(intent.files.map((file) => file.after))
           },
           close: async (intent, status, conflicts) => {
             await journal.close(intent, status, conflicts)
             retention.copy = false
           },
+          checkBatch: checkRef,
         },
       ),
       // Owner-store recovery: this window's own open landing recovers at
@@ -449,9 +487,8 @@ export async function landTeamTask(
     switch (landed.status) {
       case 'changed': {
         // What reached the tree stays named as written until Undo Merge puts it back.
-        written = merged.written.filter((file) =>
-          landed.paths.every((name) => !isSamePath(name, file, deps.platform)),
-        )
+        const stopped = new Set(landed.paths.map((name) => samePathKey(name, deps.platform)))
+        written = merged.written.filter((file) => !stopped.has(samePathKey(file, deps.platform)))
         refusal = {
           kind: 'changed',
           action: 'recheck',
@@ -517,12 +554,16 @@ function rollbackLanding(input: {
 }): TeamLanding {
   const { deps, admit, root, staging, journal, gitDirectory } = input
   const { policy } = deps
-  const access = landingFileAccess(root, staging, { validateTarget: policy.validateTarget })
+  const facts = landingFacts(staging, root)
+  const access = landingFileAccess(root, staging, {
+    validateTarget: policy.validateTarget,
+    facts: facts.read,
+  })
   return new TeamLanding({
     windowInstanceId: policy.owner.instanceId,
     canonicalRoot: canonicalPath,
     hasOpenLanding: () => Promise.resolve(false),
-    snapshot: (folder) => staging.snapshot(folder),
+    snapshot: facts.reading,
     checkIdentity: () => Promise.resolve(checkIdentity(policy.checks())),
     invalidate: () => Promise.resolve(),
     ...landingLockPorts({
@@ -546,6 +587,7 @@ function rollbackLanding(input: {
         close: async (intent, status, conflicts) => {
           await journal.close(intent, status, conflicts)
         },
+        checkBatch: () => Promise.resolve(),
       },
     ),
     authorizeRecovery: input.authorize,
@@ -597,30 +639,32 @@ export async function recoverOpenLandings(
   }
   const journal = storeLandingJournal(ownerStoreOf)
   const gitDirectory = await staging.gitDirectory(root)
-  const landing = rollbackLanding({
-    deps,
-    admit,
-    root,
-    staging,
-    journal,
-    gitDirectory,
-    authorize: async (intent) => {
-      admit()
-      if (intent.windowInstanceId === owner.instanceId) return true
-      const found = open.find((item) => item.record.id === intent.id)
-      if (found?.storeOwner.instanceId !== intent.windowInstanceId) return false
-      return await hasConfirmedTakeover({
-        admit,
-        policy,
-        authority,
-        record: found.record,
-        storeOwner: found.storeOwner,
-      })
-    },
-  })
+  const canRecover = async (intent: LandingIntent): Promise<boolean> => {
+    admit()
+    if (intent.windowInstanceId === owner.instanceId) return true
+    const found = open.find((item) => item.record.id === intent.id)
+    if (found?.storeOwner.instanceId !== intent.windowInstanceId) return false
+    return await hasConfirmedTakeover({
+      admit,
+      policy,
+      authority,
+      record: found.record,
+      storeOwner: found.storeOwner,
+    })
+  }
   let recovered = 0
   for (const { record } of open) {
     admit()
+    // Each its own: git's facts are kept for the length of one landing, never across two.
+    const landing = rollbackLanding({
+      deps,
+      admit,
+      root,
+      staging,
+      journal,
+      gitDirectory,
+      authorize: canRecover,
+    })
     const outcome = await landing.recover(record)
     if (outcome.status === 'landed' || outcome.status === 'changed') recovered++
   }
