@@ -785,8 +785,24 @@ export async function createNativeTeamProcessDriver(options: {
         descendants: 'uncertain',
         ...(notOwned.size > 0 && { notOwned: [...notOwned] }),
       })
+      /**
+      The program a live child runs now. The identity is recorded just after the gate opens, and a
+      command can exec after that: the shell had not yet, under load (3 launches in 200 at eight at
+      once, each then out of reach of every signal), or `sh -c 'a; exec b'` does so later. The same
+      pid, start, group, owner and marker are the same process, whatever it has become.
+      */
+      const asItRunsNow = async (known: LaunchConfirmation): Promise<LaunchConfirmation> => {
+        const current = await observer.observe(known.pid)
+        return current?.startTime === known.startTime &&
+          current.uid === known.uid &&
+          current.launchId === launchId &&
+          current.group === (scope === undefined ? known.group : String(known.pid))
+          ? { ...known, executable: current.executable }
+          : known
+      }
       const didSignal = async (name: 'SIGTERM' | 'SIGKILL'): Promise<boolean> => {
         if (recorded === undefined) return false
+        recorded = await asItRunsNow(recorded)
         let canSignalScope = scope !== undefined
         try {
           if (scope !== undefined && process.platform === 'linux') {
