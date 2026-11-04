@@ -486,6 +486,7 @@ if (process.platform !== 'win32') {
           // relay, and every later byte goes nowhere (run 41516831678,
           // macOS shard 8; the peer side was already held and survived).
           // The holder never reads: the session under test owns the input.
+          // It also carries the setup below, for the reason told there.
           const held = await open(left, constants.O_RDWR | constants.O_NONBLOCK)
           const peer = await open(right, constants.O_RDWR | constants.O_NONBLOCK)
           try {
@@ -511,24 +512,16 @@ if (process.platform !== 'win32') {
             )
             // PTYs do not implement DTR/RTS. These test-only commands exercise
             // low-level IO/cleanup; they cannot be selected for an approved action.
-            const setup = {
-              file: '/bin/stty',
-              args: [
-                process.platform === 'darwin' ? '-f' : '-F',
-                left,
-                String(settings.baud),
-                'raw',
-                '-echo',
-                '-hupcl',
-                'cs8',
-                '-parenb',
-                '-cstopb',
-              ],
-              writable: false,
-            }
-            const stty = await startSerialProcess(setup, makerProcessDeps())
-            const setupResult = await stty.result
-            expect(setupResult.reason).toBe('ended')
+            // On the holder's descriptor, with no session of its own. macOS makes a terminal that
+            // a session leader opens its controlling terminal, and that leader's exit revokes every
+            // other open of it: `stty -f` under the helpers' setsid ended the relay however the
+            // device was held ('socket 1 (fd 5) is at EOF', run 41738951665; inferred from there).
+            const setup = spawnSync(
+              '/bin/stty',
+              [String(settings.baud), 'raw', '-echo', '-hupcl', 'cs8', '-parenb', '-cstopb'],
+              { encoding: 'utf8', env: makerProcessDeps().env, stdio: [held.fd, 'ignore', 'pipe'] },
+            )
+            expect(setup.status, setup.stderr).toBe(0)
             const session = await startSerialProcess(
               {
                 file: kind === 'stty' ? '/bin/sh' : '/usr/bin/python3',
