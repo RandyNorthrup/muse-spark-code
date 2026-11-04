@@ -121,11 +121,25 @@ function writeStoredTeam(dataFolder: string, cwd: string, snapshot: TeamSnapshot
 /** A worker start the test holds at its gate, then fails as a refused start does. */
 function heldStarts() {
   const gates: { reject: (error: Error) => void }[] = []
+  const first = Promise.withResolvers<true>()
+  let refusal: Error | undefined
   return {
     gates,
+    /** The first start reaching its gate. */
+    started: first.promise,
+    /** Fails every start from here on: a refused start is retried, and that one is refused too. */
+    refuseStarts: (error: Error) => {
+      refusal = error
+      for (const gate of gates.splice(0)) gate.reject(error)
+    },
     startWorker: () =>
       new Promise<never>((_resolve, reject) => {
+        if (refusal !== undefined) {
+          reject(refusal)
+          return
+        }
         gates.push({ reject })
+        first.resolve(true)
       }),
   }
 }
@@ -165,13 +179,43 @@ function saidIn(updates: readonly acp.SessionUpdate[]): readonly string[] {
   )
 }
 
+type SeenUpdates = readonly acp.SessionUpdate[]
+
+/**
+What an editor received, and a wait on it. Each wait ends on a message the product itself sends, so
+no case here depends on how fast a machine is; one that never hears it ends at the case's own limit.
+*/
+function updateLog() {
+  const updates: acp.SessionUpdate[] = []
+  const waits: { isDone: (seen: SeenUpdates) => boolean; arrived: () => void }[] = []
+  return {
+    updates,
+    receive: (update: acp.SessionUpdate) => {
+      updates.push(update)
+      for (const wait of waits) if (wait.isDone(updates)) wait.arrived()
+    },
+    until: async (isDone: (seen: SeenUpdates) => boolean) => {
+      if (isDone(updates)) return
+      await new Promise<void>((arrived) => {
+        waits.push({ isDone, arrived })
+      })
+    },
+  }
+}
+
+/** The merge flow's own last word: the card closes once the landing has finished, or was refused. */
+const isMergeCallEnd = (update: acp.SessionUpdate) =>
+  update.sessionUpdate === 'tool_call_update' &&
+  update.toolCallId === 'team/merge/task-merge' &&
+  update.status === 'completed'
+const hasMergeCallEnded = (seen: SeenUpdates) => seen.some((update) => isMergeCallEnd(update))
+const hasSpoken = (seen: SeenUpdates) => saidIn(seen).length > 0
+
 /** An editor in this mode whose person answers Merge; a Bypass session is never asked. */
-function mergingEditor(mode: 'manual' | 'bypassPermissions', updates: acp.SessionUpdate[]) {
+function mergingEditor(mode: 'manual' | 'bypassPermissions', log: ReturnType<typeof updateLog>) {
   return {
     mode: () => mode,
-    sendUpdate: (update: acp.SessionUpdate) => {
-      updates.push(update)
-    },
+    sendUpdate: log.receive,
     requestPermission: () =>
       Promise.resolve({ outcome: { outcome: 'selected' as const, optionId: 'merge' } }),
   }
@@ -194,15 +238,6 @@ async function prepareFailure(dataFolder: string, repo: string): Promise<unknown
     return await failureOf(port.prepareNew(repo, ORCHESTRATOR))
   } finally {
     await port.dispose()
-  }
-}
-
-/** Polls one condition the product itself drives; a timeout is the failure. */
-async function eventually(isDone: () => boolean, label: string): Promise<void> {
-  const deadline = Date.now() + 3000
-  while (!isDone()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${label}`)
-    await new Promise((resolve) => setTimeout(resolve, 10))
   }
 }
 
@@ -378,7 +413,7 @@ describe('ACP team admission over the real agent', () => {
       })
       expect(held.gates).toEqual([])
       const answer = takeOver(turn, context())
-      await eventually(() => held.gates.length === 1, 'the next agent starting')
+      await held.started
       held.gates[0]?.reject(new Error('no worker conversation in this suite'))
       expect(await answer).toMatchObject({ kind: 'answered', model: WORKER })
       await session.close()
@@ -427,21 +462,21 @@ async function heldTeam() {
 
 /** The editor's side of one attached session: its updates and its answers. */
 function editorHandler(answer: (request: acp.RequestPermissionRequest) => string) {
-  const updates: acp.SessionUpdate[] = []
+  const log = updateLog()
   const requests: acp.RequestPermissionRequest[] = []
+  const asked = Promise.withResolvers<true>()
   const handler: AcpTeamSessionHandler = {
     mode: () => 'manual',
-    sendUpdate: (update) => {
-      updates.push(update)
-    },
+    sendUpdate: log.receive,
     requestPermission: (request) => {
       requests.push(request)
+      asked.resolve(true)
       return Promise.resolve({
         outcome: { outcome: 'selected', optionId: answer(request) },
       })
     },
   }
-  return { updates, requests, handler }
+  return { ...log, requests, asked: asked.promise, handler }
 }
 
 const context = () => ({
@@ -560,8 +595,7 @@ async function restoredMerge(
   )
   const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
   const prepared = await port.prepareNew(repo, ORCHESTRATOR)
-  const editor =
-    handler === undefined ? editorHandler(() => answer) : { updates: [], requests: [], handler }
+  const editor = { ...editorHandler(() => answer), ...(handler !== undefined && { handler }) }
   const session = await prepared.attach('team-session', editor.handler)
   return {
     repo,
@@ -584,7 +618,7 @@ async function askRestoredMerge(answer: string) {
     .seamsFor(rig.repo)
     .teamRunner.merge({ task_id: 'task-merge' }, context())
   expect(result.output).not.toContain('Error:')
-  await eventually(() => rig.editor.requests.length === 1, 'the merge permission request')
+  await rig.editor.asked
   return rig
 }
 
@@ -610,7 +644,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     try {
       expect(prepared.isTeam).toBe(true)
       const taskId = await delegateOne(port, repo)
-      await eventually(() => held.gates.length === 1, 'the worker start')
+      await held.started
       const plan = editor.updates.find(
         (update) =>
           update.sessionUpdate === 'plan' &&
@@ -627,23 +661,17 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         title: `engineering · ${WORKER}: fix the bug`,
         status: 'in_progress',
       })
-      // A start that cannot complete is retried by the scheduler; fail
-      // each attempt at its gate until the task itself settles failed.
-      const isFailed = () =>
-        editor.updates.some(
+      // A start that cannot complete is retried by the scheduler: every attempt
+      // fails at its gate, until the task itself settles failed.
+      held.refuseStarts(new Error('the worker conversation could not start'))
+      await editor.until((seen) =>
+        seen.some(
           (update) =>
             update.sessionUpdate === 'tool_call_update' &&
             update.toolCallId === `team/task/${taskId}` &&
             update.status === 'failed',
-        )
-      const deadline = Date.now() + 3000
-      while (!isFailed()) {
-        if (Date.now() > deadline)
-          throw new Error('timed out waiting for the failed tool call update')
-        for (const gate of held.gates.splice(0))
-          gate.reject(new Error('the worker conversation could not start'))
-        await new Promise((resolve) => setTimeout(resolve, 10))
-      }
+        ),
+      )
       await session.close()
     } finally {
       await port.dispose()
@@ -654,23 +682,21 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     const { repo, held, port, editor, session } = await heldTeam()
     try {
       await delegateOne(port, repo)
-      await eventually(() => held.gates.length === 1, 'the worker start')
+      await held.started
       const before = editor.updates.length
       await session.cancel()
       // A new empty plan arrives from the cancel itself, while the
       // worker's start is still held at its gate: only the stop can
       // have removed the task.
-      await eventually(
-        () =>
-          editor.updates
-            .slice(before)
-            .some(
-              (update) =>
-                update.sessionUpdate === 'plan' &&
-                Array.isArray(update.entries) &&
-                update.entries.length === 0,
-            ),
-        'the emptied plan',
+      await editor.until((seen) =>
+        seen
+          .slice(before)
+          .some(
+            (update) =>
+              update.sessionUpdate === 'plan' &&
+              Array.isArray(update.entries) &&
+              update.entries.length === 0,
+          ),
       )
       held.gates[0]?.reject(new Error('the worker conversation could not start'))
       await session.close()
@@ -682,16 +708,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   it('asks for a merge with the real diff and discards on refusal', async () => {
     const { repo, port, editor, session } = await askRestoredMerge('discard')
     try {
-      await eventually(
-        () =>
-          editor.updates.some(
-            (update) =>
-              update.sessionUpdate === 'tool_call_update' &&
-              update.toolCallId === 'team/merge/task-merge' &&
-              update.status === 'completed',
-          ),
-        'the completed merge call',
-      )
+      await editor.until(hasMergeCallEnded)
       const content = editor.requests[0]?.toolCall.content ?? []
       expect(content).toContainEqual({
         type: 'diff',
@@ -707,12 +724,10 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('lands the change on the editor’s approval', async () => {
-    const { repo, port, session } = await askRestoredMerge('merge')
+    const { repo, port, editor, session } = await askRestoredMerge('merge')
     try {
-      await eventually(
-        () => readFileSync(path.join(repo, 'a.ts'), 'utf8') === 'const value = 2\n',
-        'the landed change',
-      )
+      // The card closes when the landing has finished, however long that took.
+      await editor.until(hasMergeCallEnded)
       expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 2\n')
       await session.close()
     } finally {
@@ -769,15 +784,13 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         },
         requestPermission: () => Promise.reject(new Error('the other session is not asked')),
       })
-      await eventually(
-        () =>
-          editor.updates.some(
-            (update) =>
-              update.sessionUpdate === 'tool_call' &&
-              typeof update.title === 'string' &&
-              update.title.includes('fix the bug'),
-          ),
-        'the owning session’s task',
+      await editor.until((seen) =>
+        seen.some(
+          (update) =>
+            update.sessionUpdate === 'tool_call' &&
+            typeof update.title === 'string' &&
+            update.title.includes('fix the bug'),
+        ),
       )
       const leaked = JSON.stringify(otherUpdates)
       expect(leaked).not.toContain('fix the bug')
@@ -790,12 +803,12 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
 
   it('refuses a merge the editor answers only after cancel, and removes the copy', async () => {
     const { promise: answer, resolve: release } = Promise.withResolvers<string>()
-    let isAsked = false
+    const asked = Promise.withResolvers<true>()
     const { repo, port, session, copyFolder } = await restoredMerge('merge', {
       mode: () => 'manual',
       sendUpdate: () => undefined,
       requestPermission: async () => {
-        isAsked = true
+        asked.resolve(true)
         const optionId = await answer
         return { outcome: { outcome: 'selected' as const, optionId } }
       },
@@ -805,7 +818,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         .seamsFor(repo)
         .teamRunner.merge({ task_id: 'task-merge' }, context())
       expect(result.output).not.toContain('Error:')
-      await eventually(() => isAsked, 'the merge question')
+      await asked.promise
       await session.cancel()
       expect(existsSync(copyFolder)).toBe(false)
       expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
@@ -819,12 +832,10 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('says so and discards when the editor cannot answer a merge', async () => {
-    const updates: acp.SessionUpdate[] = []
+    const log = updateLog()
     const { repo, port, session } = await restoredMerge('discard', {
       mode: () => 'manual',
-      sendUpdate: (update) => {
-        updates.push(update)
-      },
+      sendUpdate: log.receive,
       requestPermission: () =>
         Promise.reject(new Error('session/request_permission is not supported')),
     })
@@ -833,16 +844,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         .seamsFor(repo)
         .teamRunner.merge({ task_id: 'task-merge' }, context())
       expect(result.output).not.toContain('Error:')
-      await eventually(
-        () =>
-          updates.some(
-            (update) =>
-              update.sessionUpdate === 'agent_message_chunk' &&
-              update.content.type === 'text' &&
-              update.content.text === UI_TEXT.acpTeamUnanswered,
-          ),
-        'the unanswered sentence',
-      )
+      await log.until((seen) => saidIn(seen).includes(UI_TEXT.acpTeamUnanswered))
       expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
       await session.close()
       expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
@@ -853,13 +855,11 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
 
   // RVACPTEAM's open P3s, each on the real team host and the real filesystem.
   it('says a card that failed for real in the generic words, never a machine’s code', async () => {
-    const updates: acp.SessionUpdate[] = []
+    const log = updateLog()
     const copy = { folder: '' }
     const { repo, port, session, copyFolder } = await restoredMerge('merge', {
       mode: () => 'manual',
-      sendUpdate: (update) => {
-        updates.push(update)
-      },
+      sendUpdate: log.receive,
       // The task's copy goes while the person decides, so the landing throws for real.
       requestPermission: () => {
         rmSync(copy.folder, { force: true, recursive: true })
@@ -872,8 +872,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         .seamsFor(repo)
         .teamRunner.merge({ task_id: 'task-merge' }, context())
       expect(result.output).not.toContain('Error:')
-      await eventually(() => saidIn(updates).length > 0, 'the failed card’s sentence')
-      expect(saidIn(updates)).toEqual([UI_TEXT.actionFailed])
+      await log.until(hasSpoken)
+      expect(saidIn(log.updates)).toEqual([UI_TEXT.actionFailed])
       await session.close()
     } finally {
       await port.dispose()
@@ -884,8 +884,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   it.each(MODES)(
     'tells the person once, in %s mode, that a held lock kept the merge off their files',
     async (mode) => {
-      const updates: acp.SessionUpdate[] = []
-      const { repo, port, session } = await restoredMerge('merge', mergingEditor(mode, updates))
+      const log = updateLog()
+      const { repo, port, session } = await restoredMerge('merge', mergingEditor(mode, log))
       const notices = UI_TEXT.teamTrafficNotices
       try {
         writeFileSync(path.join(repo, '.git', 'index.lock'), '')
@@ -893,14 +893,14 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
           .seamsFor(repo)
           .teamRunner.merge({ task_id: 'task-merge' }, context())
         expect(result.output).not.toContain('Error:')
-        await eventually(() => saidIn(updates).length > 0, 'the refused landing’s words')
+        await log.until(hasSpoken)
         const listed = await realTeamGit(
           ['branch', '--list', 'agents/landing/*', '--format=%(refname:short)'],
           repo,
         )
         const branch = new TextDecoder().decode(listed).trim()
         expect(branch).not.toBe('')
-        const [words = ''] = saidIn(updates)
+        const [words = ''] = saidIn(log.updates)
         expect(words.startsWith(notices.heldByLock.split('{path}', 1)[0] ?? '')).toBe(true)
         expect(words).toContain('index.lock')
         expect(words.endsWith(fill(notices.landingBranchedThen, { branch }))).toBe(true)
@@ -908,7 +908,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
         rmSync(path.join(repo, '.git', 'index.lock'))
         await session.close()
-        expect(saidIn(updates)).toHaveLength(1)
+        expect(saidIn(log.updates)).toHaveLength(1)
       } finally {
         await port.dispose()
       }
@@ -919,8 +919,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     'names the landing that holds the lock, in %s mode, when another run is mid-landing',
     { timeout: 180_000 },
     async (mode) => {
-      const updates: acp.SessionUpdate[] = []
-      const rig = await restoredMerge('merge', mergingEditor(mode, updates))
+      const log = updateLog()
+      const rig = await restoredMerge('merge', mergingEditor(mode, log))
       const notices = UI_TEXT.teamTrafficNotices
       const lander = await buildLander()
       try {
@@ -946,8 +946,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
           .seamsFor(rig.repo)
           .teamRunner.merge({ task_id: 'task-merge' }, context())
         expect(result.output).not.toContain('Error:')
-        await eventually(() => saidIn(updates).length > 0, 'the refused landing’s words')
-        const [words = ''] = saidIn(updates)
+        await log.until(hasSpoken)
+        const [words = ''] = saidIn(log.updates)
         expect(words.startsWith(notices.heldByLanding.split('{path}', 1)[0] ?? '')).toBe(true)
         expect(words).toContain('index.lock')
         expect(words.endsWith(notices.landingBusyThen)).toBe(true)
@@ -961,13 +961,11 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   )
 
   it('says a refused landing once, and an answer of Discard after it says nothing more', async () => {
-    const updates: acp.SessionUpdate[] = []
+    const log = updateLog()
     const answers = ['merge', 'discard']
     const { repo, port, session } = await restoredMerge('merge', {
       mode: () => 'manual',
-      sendUpdate: (update) => {
-        updates.push(update)
-      },
+      sendUpdate: log.receive,
       requestPermission: () =>
         Promise.resolve({
           outcome: { outcome: 'selected' as const, optionId: answers.shift() ?? 'discard' },
@@ -976,12 +974,13 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     try {
       writeFileSync(path.join(repo, '.git', 'index.lock'), '')
       await port.seamsFor(repo).teamRunner.merge({ task_id: 'task-merge' }, context())
-      await eventually(() => saidIn(updates).length > 0, 'the refused landing’s words')
+      await log.until(hasSpoken)
       rmSync(path.join(repo, '.git', 'index.lock'))
       await port.seamsFor(repo).teamRunner.merge({ task_id: 'task-merge' }, context())
-      await eventually(() => answers.length === 0, 'the second question')
+      // The Discard's own end: the card closes a second time.
+      await log.until((seen) => seen.filter((update) => isMergeCallEnd(update)).length === 2)
       await session.close()
-      expect(saidIn(updates)).toHaveLength(1)
+      expect(saidIn(log.updates)).toHaveLength(1)
     } finally {
       await port.dispose()
     }
@@ -1019,7 +1018,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   it('waits for an aborted worker before the team is gone', async () => {
     const { repo, held, port } = await heldTeam()
     await delegateOne(port, repo)
-    await eventually(() => held.gates.length === 1, 'the worker start')
+    await held.started
     let isDisposed = false
     const disposing = (async () => {
       await port.dispose()
@@ -1040,7 +1039,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     async () => {
       const { repo, held, port } = await heldTeam()
       await delegateOne(port, repo)
-      await eventually(() => held.gates.length === 1, 'the worker start')
+      await held.started
       try {
         await port.dispose()
       } finally {
@@ -1091,16 +1090,14 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   it('reports a capped worker as failed, with its report', async () => {
     const { port, editor, session } = await restoredMerge('discard', undefined, 'capped')
     try {
-      await eventually(
-        () =>
-          editor.updates.some(
-            (update) =>
-              update.sessionUpdate === 'tool_call_update' &&
-              update.toolCallId === 'team/task/task-merge' &&
-              update.status === 'failed' &&
-              JSON.stringify(update.content).includes('stopped at the cap'),
-          ),
-        'the capped task’s failed call',
+      await editor.until((seen) =>
+        seen.some(
+          (update) =>
+            update.sessionUpdate === 'tool_call_update' &&
+            update.toolCallId === 'team/task/task-merge' &&
+            update.status === 'failed' &&
+            JSON.stringify(update.content).includes('stopped at the cap'),
+        ),
       )
       expect(
         editor.updates.some(
