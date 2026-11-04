@@ -277,6 +277,12 @@ jobs:
       # them the system skips file permissions: the suites that prove a real
       # permission refusal could never be refused (measured on the hosted
       # runner: a denied folder listed under Git Bash, EPERM under PowerShell).
+      - name: Windows runner timings before the suite
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        timeout-minutes: 3
+        shell: pwsh
+        run: ./.github/windows-runner-timings.ps1 -When 'before the suite'
       - name: unit tests (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -291,6 +297,12 @@ jobs:
             npx vitest run "--shard=$($env:SHARD)/$($env:SHARDS)" --reporter=default
           }
           exit $LASTEXITCODE
+      - name: Windows runner timings after the suite
+        if: ${{ always() && runner.os == 'Windows' }}
+        continue-on-error: true
+        timeout-minutes: 3
+        shell: pwsh
+        run: ./.github/windows-runner-timings.ps1 -When 'after the suite'
 
   accessibility:
     name: accessibility (WCAG 2.2 AA)
