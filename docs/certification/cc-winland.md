@@ -507,7 +507,7 @@ retirement no longer waits out the grace for a scope already empty.
 
 **macOS is hosted CI's to prove.** These cover its path, and none of them skips there:
 
-- `teamCheckProof.test.ts`: `reading a scope that is gone` (2), `a bare process group` (5), `a worker's run_checks` (4),
+- `teamCheckProof.test.ts`: `reading a scope that is gone` (2), `a retirement` (1), `a bare process group` (5), `a worker's run_checks` (4),
   `the slots' refusals` (1). Only `a real Linux scope` (3) skips, because macOS has no such container.
 - `teamLandingChecks.test.ts` (2) and `teamProcessLifetime.test.ts` (7).
 
@@ -544,7 +544,7 @@ scope` (3, no such container), the same 2 and 7. The build and the built bundles
 | P6       | a missing `cgroup.events` alone reads as ended                              | none        | reads gone only from the folder gone                    | `expected true to be false`         |
 | P7       | gone is read with no hierarchy mounted                                      | none        | the same                                                | `expected true to be false`         |
 | P8       | a scope counts as seen without the child in it                              | none        | counts a scope as seen                                  | a path for `undefined`              |
-| P9       | a check takes the shared slots with no proof possible: **the fault itself** | none        | `run_checks` 3, landing checks 2, one more              | the hosted sentence                 |
+| P9       | a check takes the shared slots with no proof possible: **the fault itself** | none        | `run_checks` and landing checks, 6 in all               | the hosted sentence                 |
 | P10      | the permit goes back with no look at the group                              | none        | says the sentence when something really has not stopped | no sentence                         |
 | P11      | a folder used once stays                                                    | none        | reuses a folder only where its end is proved            | two folders left                    |
 | P12      | the group looked at but never signalled                                     | none        | signals a member, signals a stubborn                    | the child alive                     |
@@ -566,4 +566,23 @@ They supersede L1 to L3 and W21, which broke the same choice when it was made by
 
 **Suites and gates on the final code.**
 
-@@GATES@@
+Windows, this PC, named files, `--maxWorkers=4`. At `3d700480f0`: `teamCheckProof`, `teamLandingChecks`,
+`teamLandingSurfaces`, `teamLandingSnapshot`, `teamGitLauncher`, `teamLandingProduct`, `teamLandingKilled`,
+`teamLandingPause`, `teamHostRealParts`, `teamEnginePorts`, `teamMergePlan`, `teamLaunchWindows`, `teamProcessWorkers`,
+`teamCheckSlotsGoverned`, `teamWorkerChecks`, `teamProcessLifetime`, `teamSchedulerRecovery`, `jobHostHijack`,
+`acpTeamSession`, `execTeamSweep`, `teamAvailability`, `pathGuardSpawns`, `teamChunkPackaging`, `mhpContract`: 200 passed, 35
+skipped, **2 failed, exit 1**: `the governed git`'s two cases past their 180 s, named above. Those two with `teamCheckProof`,
+by themselves at `65a32666d2`: exit 0, 18 passed, 9 skipped. At `38a160edf9`: `teamCheckProof` and `teamLandingChecks`, exit 0,
+8 passed, 10 skipped. The commits between touch only the POSIX branch of the lifetime and a test.
+
+The static job's gates, one pass on `145d627f56`, Node 22.23.4, exit codes: `format:check` 0, `lint` 0, `typecheck` 0, `check:badges` 0, `check:tokens` 0, `check:art` 0, `check:l10n` 0, `check:reference` 0, `check:host-api` 1, `check:mhp` 0, `check:plan` 0, `check:roadmap` 0, `check:editor-matrix` 0, `check:catches` 0, `check:usable-reply` 0, `check:wrap-up-request` 0, `check:no-output-cap` 0, `check:no-round-cap` 0, `check:workflow-scripts` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `build` 0, `security:audit` 0. `check:host-api` wanted one count in its
+table (`node:path`, 412 to 413, the new import); `npm run check:host-api -- --write` wrote it, and the gate re-run on the next commit
+exits 0. Nothing else follows that pass but this record. Semgrep, pinned, on the seven changed source files: 0 findings,
+exit 0. Budgets, none raised, none crossed: `dist/resourceGovernor.js` 124.8 of 125 KiB, unchanged, as nothing here went in
+it; `dist/teamProcess.js` 370.3 of 375, from 367.9; `dist/teamRunners.js` 34.5 of 75; `dist/teamWorkerOps.js` 14.4 of 17;
+`dist/teamLanding.js` 56.7 of 75; `dist/extension.js` 527.9 of 600. The checkout, its Node, what the runs left in
+WSL's `/tmp` and the user manager I started are gone.
+
+**Commits.** `a1f27facbb` → `a598ca5df4` (reading a gone scope, one-use folders for workers, the sentence, the names) → `3d700480f0`
+(a catch) → `65a32666d2` (what dispose keeps) → `66b62456ca` (the retirement over an exec) → `38a160edf9` (its guard) →
+`145d627f56` (the records) → the commit carrying these lines. Not pushed.
