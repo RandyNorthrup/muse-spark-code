@@ -77,6 +77,11 @@ jobs:
     # (lint:js:main 7.0, lint:js:unit 10.2) against 6.5 on Ubuntu, and 5.1 GB
     # per ESLint process rules out ESLint's threads on a 7 GB runner. Three
     # parts run every gate on every OS; macOS' slowest measured is ~11 min.
+    # lint:js:main then swung from 9.5 to over 24.6 min on macOS alone on one
+    # tree (run 41824926474, cancelled with no output). One process over all of
+    # it peaks at 5.8 GB on a 7 GB runner, so lint:js:main runs three processes
+    # that peak at 4.5 GB or less; lint:js:rest is the other two's complement,
+    # so a new folder is never left out. docs/certification/cc-lintsplit.md
     timeout-minutes: 25
     strategy:
       fail-fast: false
