@@ -4202,6 +4202,7 @@ async function activateWindow(
     isFastPathOff: () => currentSettings()['judge.fastPathOff'],
     maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
     mcpDeferThresholdTokens: () => currentSettings().modelApiMcpDeferTokens,
+    mcpAlwaysLoadServers: () => currentSettings().modelApiMcpAlwaysLoad,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,

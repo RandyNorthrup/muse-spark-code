@@ -13,6 +13,8 @@
 // `tool_search` plus already-discovered tools are declared. Discovery
 // appends: a discovered tool joins the end of the declared list and
 // stays for the session, so the prefix only ever grows, never moves.
+// The servers the person says always load keep their tools declared,
+// ahead of every discovery, so no search ever moves them.
 // The search runs over the local catalogue only; it executes nothing.
 
 import { MODEL_API_TOOLS } from '../../../../shared/constants'
@@ -113,8 +115,9 @@ export interface DeferralPlan {
   readonly isDeferred: boolean
   /**
   The MCP entries to declare. Not deferred: the whole sorted
-  catalogue. Deferred: the discovered subset, in discovery order
-  (append-only; the prefix never moves).
+  catalogue. Deferred: the always-loaded servers' tools in catalogue
+  order, then the discovered subset in discovery order (append-only;
+  the prefix never moves).
   */
   readonly declared: readonly McpCatalogEntry[]
   /** Catalogue entries held back for discovery. */
@@ -130,14 +133,22 @@ The plan for a sorted catalogue. `thresholdTokens <= 0` never defers
 (the person's 0). `discoveredOrder` is the session's discovered
 function names in the order they were found; names no longer in the
 catalogue are skipped, duplicates collapse to first sight.
+`alwaysLoad` names the servers whose tools are declared regardless;
+with every server named there is nothing left to defer.
 */
 export function planDeferral(
   catalog: readonly McpCatalogEntry[],
   thresholdTokens: number,
   discoveredOrder: readonly string[],
+  alwaysLoad: ReadonlySet<string> = new Set(),
 ): DeferralPlan {
   const definitionTokens = estimateDefinitionTokens(catalog.map((entry) => entry.definition))
-  if (thresholdTokens <= 0 || definitionTokens <= thresholdTokens) {
+  const declared = catalog.filter((entry) => alwaysLoad.has(entry.server))
+  if (
+    thresholdTokens <= 0 ||
+    definitionTokens <= thresholdTokens ||
+    declared.length === catalog.length
+  ) {
     return {
       isDeferred: false,
       declared: catalog,
@@ -147,8 +158,7 @@ export function planDeferral(
     }
   }
   const byName = new Map(catalog.map((entry) => [entry.functionName, entry]))
-  const declared: McpCatalogEntry[] = []
-  const seen = new Set<string>()
+  const seen = new Set(declared.map((entry) => entry.functionName))
   for (const name of discoveredOrder) {
     const entry = byName.get(name)
     if (entry === undefined || seen.has(name)) {

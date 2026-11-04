@@ -1631,6 +1631,10 @@ export const SETTING_DEFAULTS = {
   // counted live pair (full vs deferred, 16 eval tasks) holds the
   // floors; until then every schema loads and 10,000 is the suggestion.
   modelApiMcpDeferTokens: 0,
+  // The MCP servers whose tools stay declared while the rest defer. A list of
+  // our own rather than a key in the MCP settings file: the Muse Code CLI reads
+  // that file too, and this choice is about what the Model API route declares.
+  modelApiMcpAlwaysLoad: [],
   // C-M95-SUB: drive the Model API backend from the Muse Code subscription
   // instead of a pay-as-you-go key. Off until the user turns it on; machine
   // scoped, since a repository must not choose what is billed.
@@ -1829,6 +1833,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiMaxToolOutputBytes',
   // 4-H4: the defer threshold decides how many definition tokens are billed.
   'modelApiMcpDeferTokens',
+  // What rides every request is billed too, so a repository must not choose it.
+  'modelApiMcpAlwaysLoad',
   // Lane RETRYLIMITS: the person's retry ceiling chooses billed retries, so
   // a repository must not set it (PLAN.md D15). D228: its Muse Code
   // sibling chooses billed resends the same way.
@@ -12093,6 +12099,10 @@ export const LSP_COMMANDS = {
 export const SUPERVISED_FOLDER = 'supervised'
 /** The owner's id in its supervised child's environment, so `stop` stops its own run last. */
 export const SUPERVISED_OWNER_VARIABLE = 'MUSE_SPARK_SUPERVISED_OWNER'
+/** The supervisor's process id in its supervised child's environment, for the child's watch on it. */
+export const SUPERVISOR_PID_VARIABLE = 'MUSE_SPARK_SUPERVISOR_PID'
+/** How often a supervised run on POSIX looks for its supervisor. */
+export const SUPERVISOR_WATCH_MS = 1000
 /** The stop endpoint's secret: a control request carries it. */
 export const SUPERVISE_TOKEN_BYTES = 32
 /** The random part of a POSIX stop endpoint's file name. */

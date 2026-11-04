@@ -4822,7 +4822,11 @@ estimated definition tokens (0, the default, always loads every schema;
 10,000 is a good starting point; machine-scoped; `exec --mcp-defer-tokens` sets it for one
 headless run), MCP schemas load on demand instead: the model gets a
 Find Tools search over the local catalogue, a tool it finds stays
-loaded for the session, and built-in tools always load. Account &
+loaded for the session, and built-in tools always load. List a server
+in `museSpark.modelApiMcpAlwaysLoad` (by name, machine-scoped, from
+your next message) and its tools stay loaded while the rest wait to be
+found; it is a setting of ours, not a key in the MCP settings file the
+Muse Code CLI also reads, and headless runs have no flag for it. Account &
 usage shows the estimated tool-definition and rules tokens your
 requests sent.
 

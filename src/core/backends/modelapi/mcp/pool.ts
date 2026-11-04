@@ -197,7 +197,7 @@ export interface McpToolSource {
   catalogue, deferral and `tool_search`. Built here so that code loads
   with the pool's lazy bundle, never in the main Model API bundle (D6).
   */
-  declarations(threshold: () => number): McpDeclarations
+  declarations(threshold: () => number, alwaysLoad: () => readonly string[]): McpDeclarations
   find(functionName: string): McpToolRef | undefined
   /**
   Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
@@ -896,8 +896,11 @@ export class McpServerPool implements McpToolSource {
     return this.catalog().map((entry) => entry.definition)
   }
 
-  public declarations(threshold: () => number): McpDeclarations {
-    return new McpDeclarations(this, threshold)
+  public declarations(
+    threshold: () => number,
+    alwaysLoad: () => readonly string[],
+  ): McpDeclarations {
+    return new McpDeclarations(this, threshold, alwaysLoad)
   }
 
   public find(functionName: string): BridgeToolRef | undefined {

@@ -138,6 +138,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Pick MCP servers that always load.** With on-demand MCP loading on,
+  `museSpark.modelApiMcpAlwaysLoad` lists the servers whose tools stay declared on every
+  request, for one the model needs most of the time. It is ours rather than a key in the
+  MCP settings file, which the Muse Code CLI reads too, and it applies from your next
+  message. Headless runs have no flag for it yet.
 - **Turn checkpoints in the native editors' panels.** A Model API conversation in
   a panel on `panel --stdio` (JetBrains, Eclipse, Visual Studio, Xcode) now
   records what each turn writes and offers Restore, as VS Code does, under the
