@@ -183,7 +183,7 @@ function MergeDetails({
     <div className="team-merge-details">
       <span>{label}</span>
       {paths.length === 0 ? (
-        <span>{UI_TEXT.teamMergeNoPaths}</span>
+        <span> {UI_TEXT.teamMergeNoPaths}</span>
       ) : (
         <ul aria-label={label}>
           {paths.slice(0, TEAM_MERGE_DETAILS_SHOWN).map((path, index) => (
