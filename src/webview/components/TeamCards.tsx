@@ -16,11 +16,14 @@ export type TeamWaitingEntry = Extract<TranscriptEntry, { kind: 'teamWaiting' }>
 export type TeamMergeEntry = Extract<TranscriptEntry, { kind: 'teamMerge' }>
 export type TeamReportEntry = Extract<TranscriptEntry, { kind: 'teamReport' }>
 
+/** A merge card's plain answers; any other `teamDecision` is a sentence for the person. */
+const DECISION_WORDS: ReadonlySet<string> = new Set(['merge', 'discard'])
+
 /** The waiting card's four choices (D75): queue, the main agent, raise, cancel. */
 export type TeamWaitingChoice = 'queue' | 'self' | 'raise' | 'cancel'
 
 /** The merge card's decision: through the orchestrator's `merge` (D75). */
-export type TeamMergeDecision = 'merge' | 'discard'
+export type TeamMergeDecision = 'merge' | 'discard' | 'undo'
 
 export interface TeamCardActions {
   readonly onAnswerWaiting: (waitingId: string, choice: TeamWaitingChoice) => void
@@ -180,7 +183,7 @@ function MergeDetails({
     <div className="team-merge-details">
       <span>{label}</span>
       {paths.length === 0 ? (
-        <span>{UI_TEXT.teamMergeNoPaths}</span>
+        <span> {UI_TEXT.teamMergeNoPaths}</span>
       ) : (
         <ul aria-label={label}>
           {paths.slice(0, TEAM_MERGE_DETAILS_SHOWN).map((path, index) => (
@@ -210,6 +213,7 @@ export function TeamMergeCard({
   const isLocked =
     entry.status !== 'inProgress' || entry.teamDecision !== undefined || pending === entry
   const hasDetails = entry.affectedFiles !== undefined && entry.protectedPaths !== undefined
+  const changed = entry.changedDuringLanding
   const decide =
     onDecide === undefined
       ? undefined
@@ -252,6 +256,29 @@ export function TeamMergeCard({
       {entry.conflicted === true ? (
         <p className="team-card-note">{UI_TEXT.teamMergeConflict}</p>
       ) : null}
+      {entry.teamDecision === undefined || DECISION_WORDS.has(entry.teamDecision) ? null : (
+        <p className="team-card-note" dir="auto">
+          {entry.teamDecision}
+        </p>
+      )}
+      {changed === undefined || decide === undefined ? null : (
+        <p className="team-card-note">
+          {plural(UI_TEXT.teamChangedDuringLanding, changed.length, {
+            count: changed.length,
+            files: changed.join(', '),
+          })}{' '}
+          <button
+            type="button"
+            className="tool-more"
+            disabled={pending === entry}
+            onClick={() => {
+              decide('undo')
+            }}
+          >
+            {UI_TEXT.teamUndoMerge}
+          </button>
+        </p>
+      )}
       {decide === undefined && onReviewDiff === undefined ? null : (
         <div className="team-card-actions" role="group" aria-label={UI_TEXT.teamMergeTitle}>
           {decide === undefined ? null : (

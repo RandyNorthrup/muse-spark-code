@@ -1,10 +1,11 @@
 import { trafficSliceSchema, type TrafficSlice } from '../../shared/modelsPanel'
-import { UI_TEXT } from '../../shared/l10n/text'
+import { fill, UI_TEXT } from '../../shared/l10n/text'
 import type { TeamBoard, TeamBoardTask, TeamSharedFile } from '../../shared/team'
 import type {
   TeamHostService,
   TeamMergeQueueEvent,
   TeamMergeRefusal,
+  TeamOpenLanding,
 } from '../../core/team/teamHostService'
 import { mergeQueueMetricEvents } from '../../core/team/trafficMetrics'
 import type { TeamTreeData } from '../../shared/teamView'
@@ -198,6 +199,17 @@ function summarizeMetrics(
 where there is one, and the offered rebuild/recheck action. */
 function describeMergeRefusal(refusal: TeamMergeRefusal): string {
   switch (refusal.kind) {
+    case 'changed': {
+      return fill(UI_TEXT.teamTrafficNotices.changedDuringLanding, {
+        path: (refusal.paths ?? []).join(', '),
+      })
+    }
+    case 'held': {
+      return fill(UI_TEXT.teamTrafficNotices.fileHeld, { path: (refusal.paths ?? []).join(', ') })
+    }
+    case 'checks': {
+      return fill(UI_TEXT.teamTrafficNotices.checksFailed, { name: refusal.check ?? '' })
+    }
     case 'stale': {
       return 'stale (rebuild)'
     }
@@ -232,7 +244,10 @@ function returnedRow(
     flaky: false,
     ...(refusal.kind === 'branched' &&
       refusal.branch !== undefined && { landingBranch: refusal.branch }),
-    actions: isLandable ? ['landNow'] : [],
+    actions: [
+      ...(isLandable ? (['landNow'] as const) : []),
+      ...(refusal.kind === 'changed' ? (['undoBatch'] as const) : []),
+    ],
   }
 }
 
@@ -293,6 +308,7 @@ export function projectTeamTraffic(
   hints: readonly WindowHint[] = [],
   sharedFiles: readonly TeamSharedFile[] = [],
   windowInstanceId = '',
+  openLandings: readonly TeamOpenLanding[] = [],
 ): TrafficSlice {
   const board = service.scheduler?.snapshot()
   if (board === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
@@ -361,7 +377,21 @@ export function projectTeamTraffic(
     })),
     localWorkers: active.length,
     workerCap: cap,
-    recovery: recoverInterrupted(board, tree, windowInstanceId),
+    recovery: [
+      ...recoverInterrupted(board, tree, windowInstanceId),
+      // What a window left open: Recover shows only once the person has removed git's lock.
+      ...openLandings.map((landing) => ({
+        id: landing.id,
+        kind: 'landing' as const,
+        generation: 0,
+        ownerMayBeLive: false,
+        windowInstanceId: landing.windowInstanceId,
+        ...(landing.lockPath !== undefined && { lockPath: landing.lockPath }),
+        paths: landing.paths,
+        detail: fill(UI_TEXT.teamTrafficNotices.landingOpen, { path: landing.paths.join(', ') }),
+        actions: ['recover', 'keep'],
+      })),
+    ],
     conflicts: predictConflicts(board, sharedFiles),
     mergeQueue: mergeQueueRows(board, service),
     mergePaused: service.landingPaused(),

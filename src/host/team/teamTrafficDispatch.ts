@@ -29,6 +29,7 @@ export async function readTeamTraffic(deps: TeamTrafficDispatchDeps): Promise<Tr
     await deps.hints(),
     deps.sharedFiles(),
     deps.windowInstanceId,
+    (await deps.service.openLandings?.()) ?? [],
   )
   return { ...projected, hostBusy: deps.isHostBusy() }
 }
@@ -118,6 +119,12 @@ export async function dispatchTeamTraffic(
         }
         case 'resume':
         case 'recover': {
+          const landings = (await deps.service.openLandings?.()) ?? []
+          // The person's Recover, which the panel asked for first, settles an open landing.
+          if (landings.some((landing) => landing.id === taskId)) {
+            await deps.service.recoverLandings?.(true)
+            break
+          }
           await scheduler.reopenInterrupted(taskId)
           await scheduler.resume()
           break
@@ -140,8 +147,12 @@ export async function dispatchTeamTraffic(
       return
     }
     case 'traffic/merge': {
-      if (message.action !== 'landNow') throw new Error(UI_TEXT.teamTaskUnknown)
-      await deps.service.decideMerge(message.taskId, 'merge')
+      if (message.action !== 'landNow' && message.action !== 'undoBatch')
+        throw new Error(UI_TEXT.teamTaskUnknown)
+      await deps.service.decideMerge(
+        message.taskId,
+        message.action === 'landNow' ? 'merge' : 'undo',
+      )
       return
     }
     case 'traffic/window': {

@@ -182,6 +182,8 @@ export const teamMergeFields = {
   affectedFiles: z.optional(z.readonly(z.array(z.string()))),
   protectedPaths: z.optional(z.readonly(z.array(z.string()))),
   conflictPaths: z.optional(z.readonly(z.array(z.string()))),
+  /** What something else changed while this landed: the card offers Undo Merge. */
+  changedDuringLanding: z.optional(z.readonly(z.array(z.string()))),
   reviewVerdict: z.optional(z.string()),
   reviewerFindings: z.optional(z.readonly(z.array(z.string()))),
   review: z.enum(TEAM_MERGE_REVIEWS),

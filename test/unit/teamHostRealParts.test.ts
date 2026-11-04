@@ -14,11 +14,12 @@
 // (test/e2e/team.live.e2e.test.ts).
 import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { createTeamHostService } from '../../src/core/team/teamHost'
+import { projectTeamTraffic } from '../../src/host/team/teamTrafficProjection'
 import type {
   TeamCardItem,
   TeamHostService,
@@ -247,6 +248,8 @@ async function makeRig(
     readonly refusalFallback?: boolean
     /** D261: the service each provider record was added from. */
     readonly providerService?: (record: string) => string | undefined
+    /** What the surface brings to the checked landing; `repo` is this rig's tree. */
+    readonly landing?: (repo: string) => Parameters<typeof enginePortsWithoutWorker>[0]['landing']
   } = {},
 ): Promise<RealRig> {
   // Resolved: the team copy must be inside canonical storage, and macOS's /var is a link.
@@ -280,6 +283,7 @@ async function makeRig(
     repositoryRoot: () => repo,
     storageRoot: storage,
     isTrusted: () => rig.trusted,
+    landing: options.landing?.(repo),
   })
   const real = realServiceDeps({
     orchestrator: ORCHESTRATOR,
@@ -573,6 +577,70 @@ describe('a refused solo chat turn moves down the main role of its agent (D261, 
     expect(lone.runs).toEqual([])
     // Real git and a real worker process exceed the 5 s default on this rig class.
   }, 60_000)
+})
+
+describe('a file saved while a task lands (real host, real git)', () => {
+  it('the card names it, Traffic offers Undo Merge, and Undo puts back only the landing', async () => {
+    const state = { isSaved: false }
+    const rig = await makeRig({
+      // The person saves b.txt while its replacement stands staged, second of three.
+      landing: (repo) => ({
+        validateTarget: async (target) => {
+          if (state.isSaved || path.basename(target) !== 'b.txt') return
+          const names = await readdir(path.dirname(target))
+          if (names.every((name) => !name.startsWith('b.txt.'))) return
+          state.isSaved = true
+          await writeFile(path.join(repo, 'b.txt'), 'the person\n')
+        },
+      }),
+    })
+    rig.plans.set('three files', { files: { 'a.txt': 'a\n', 'b.txt': 'b\n', 'c.txt': 'c\n' } })
+    const [task] = await delegate(rig, [{ brief: 'three files', priority: 'normal' }])
+    if (task === undefined) throw new Error('delegation minted no id')
+    await waitDone(rig, task)
+    await rig.service.teamRunner.merge({ task_id: task }, toolContext(ORCHESTRATOR))
+    await expect.poll(() => openMergeCards(rig).length, { timeout: 30_000 }).toBe(1)
+    await rig.service.decideMerge(task, 'merge')
+    await expect
+      .poll(() => rig.service.mergeRefusal?.(task)?.kind, { timeout: 60_000 })
+      .toBe('changed')
+
+    // Not merged, and the card says why, with its Undo.
+    expect(
+      rig.service
+        .tree()
+        ?.roles.flatMap((role) => role.unmerged)
+        .map((row) => row.taskId),
+    ).toContain(task)
+    const card = rig.cards.findLast((item) => item.kind === 'teamMerge')
+    if (card?.kind !== 'teamMerge') throw new Error('no merge card')
+    expect(card.teamMerge.changedDuringLanding).toEqual(['b.txt', 'c.txt'])
+    expect(await readFile(path.join(rig.repo, 'a.txt'), 'utf8')).toBe('a\n')
+    expect(await readFile(path.join(rig.repo, 'b.txt'), 'utf8')).toBe('the person\n')
+
+    // Traffic names it too, in the person's words, and offers the same Undo.
+    const traffic = projectTeamTraffic(rig.service, 2)
+    const row = traffic.mergeQueue.find((candidate) => candidate.taskId === task)
+    expect(row?.reason).toBe(
+      fill(UI_TEXT.teamTrafficNotices.changedDuringLanding, { path: 'b.txt, c.txt' }),
+    )
+    expect(row?.actions).toContain('undoBatch')
+
+    await rig.service.decideMerge(task, 'undo')
+    expect(existsSync(path.join(rig.repo, 'a.txt'))).toBe(false)
+    expect(await readFile(path.join(rig.repo, 'b.txt'), 'utf8')).toBe('the person\n')
+    expect(existsSync(path.join(rig.repo, 'c.txt'))).toBe(false)
+    expect(rig.service.mergeRefusal?.(task)).toBeUndefined()
+    const after = rig.cards.findLast((item) => item.kind === 'teamMerge')
+    if (after?.kind !== 'teamMerge') throw new Error('no merge card')
+    expect(after.teamMerge.changedDuringLanding).toBeUndefined()
+    expect(after.teamDecision).toBe(fill(UI_TEXT.teamTrafficNotices.undoKept, { path: 'b.txt' }))
+    // Once is all there is.
+    await expect(rig.service.decideMerge(task, 'undo')).rejects.toThrow(
+      UI_TEXT.teamTrafficDetails.changedSinceOpened,
+    )
+    // Real git, a real worker process and a real landing.
+  }, 120_000)
 })
 
 describe('the ordered merge queue (real host, real git)', () => {

@@ -243,7 +243,7 @@ const teamPanelMessageSchemas = [
   z.strictObject({
     type: z.literal('agents/merge'),
     taskId: id,
-    decision: z.enum(['merge', 'discard']),
+    decision: z.enum(['merge', 'discard', 'undo']),
   }),
   // M120 lane P: Move to… on a waiting task.
   z.strictObject({ type: z.literal('agents/moveTask'), taskId: id, role: id }),

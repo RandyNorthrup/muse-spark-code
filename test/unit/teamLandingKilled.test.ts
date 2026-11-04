@@ -1,5 +1,6 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import { once } from 'node:events'
+import type { Readable, Writable } from 'node:stream'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -252,55 +253,105 @@ const WINDOWS_POWERSHELL = path.join(
   'powershell.exe',
 )
 
+type FileHolder = ChildProcessByStdio<Writable, Readable, null>
+
+/** A real program holding `target`: FileShare.ReadWrite, no delete sharing, as Office holds a file. */
+async function holdFile(target: string): Promise<FileHolder> {
+  const script = `$s = [IO.File]::Open('${target}', [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite); [Console]::Out.WriteLine('held'); [void][Console]::In.ReadLine(); $s.Close()`
+  const holder = spawn(WINDOWS_POWERSHELL, ['-NoProfile', '-NonInteractive', '-Command', script], {
+    stdio: ['pipe', 'pipe', 'ignore'],
+    windowsHide: true,
+  })
+  await once(holder.stdout, 'data')
+  return holder
+}
+
+async function letGo(holder: FileHolder): Promise<void> {
+  if (holder.exitCode !== null) return
+  holder.stdin.end('\n')
+  await once(holder, 'exit')
+}
+
 describe.runIf(process.platform === 'win32')('a held file stops a Windows landing', () => {
-  it('leaves the batch open and recoverable, never finished', async () => {
+  it('is rolled back at once, the lock released, and says what holds it', async () => {
     const fixture = await makeLandingFixture('task-held', 'asCreated', BATCH)
     const { root, storage } = fixture
     const lockFile = path.join(root, '.git', 'index.lock')
-    const target = path.join(root, 'c.txt')
-    const script = `$s = [IO.File]::Open('${target}', [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite); [Console]::Out.WriteLine('held'); [void][Console]::In.ReadLine(); $s.Dispose()`
-    const holderProcess = spawn(
-      WINDOWS_POWERSHELL,
-      ['-NoProfile', '-NonInteractive', '-Command', script],
-      {
-        stdio: ['pipe', 'pipe', 'ignore'],
-        windowsHide: true,
-      },
-    )
+    const holder = await holdFile(path.join(root, 'c.txt'))
     try {
-      await once(holderProcess.stdout, 'data')
       const deps = landingDeps(fixture, landingPolicy(createWindowIdentity(1000)))
+      const signal = new AbortController().signal
+      const refused = await landTeamTask(EN, 'en', deps, landingTask(fixture), signal, {
+        allowProtected: false,
+      })
+      expect(refused).toMatchObject({
+        status: 'rework',
+        written: [],
+        conflicts: [],
+        refusal: { kind: 'held', paths: ['c.txt'], action: 'recheck' },
+      })
+      // This window could: nothing is left for the person to remove or recover.
+      for (const file of BATCH) expect(await readIn(root, file)).toBe('before\n')
+      expect(await stagesIn(root)).toEqual([])
+      expect(await hasFile(lockFile)).toBe(false)
+      expect(await gitAddExit(root, 'a.txt')).toBe(0)
+      expect(await landingRecords(storage)).toMatchObject([{ status: 'recovered', conflicts: [] }])
+      // The program closes the file, and the same landing goes through.
+      await letGo(holder)
+      expect(
+        await landTeamTask(EN, 'en', deps, landingTask(fixture), signal, { allowProtected: false }),
+      ).toMatchObject({ status: 'merged' })
+      for (const file of BATCH) expect(await readIn(root, file)).toBe('after\n')
+    } finally {
+      // Gone before its folder goes: Windows refuses to remove a file it holds.
+      await letGo(holder)
+      await fixture.dispose()
+    }
+    // A PowerShell start, the rename's retries, and a second landing.
+  }, 120_000)
+
+  it('leaves the batch open and recoverable when the roll-back is refused too', async () => {
+    const fixture = await makeLandingFixture('task-held-twice', 'asCreated', BATCH)
+    const { root, storage } = fixture
+    const lockFile = path.join(root, '.git', 'index.lock')
+    const holders = [await holdFile(path.join(root, 'c.txt'))]
+    try {
+      const state = { isSecondHeld: false }
+      const deps = landingDeps(
+        fixture,
+        landingPolicy(createWindowIdentity(1000), {
+          // a.txt is written by the time the landing reaches b.txt: a program takes that too.
+          validateTarget: async (target) => {
+            if (
+              state.isSecondHeld ||
+              path.basename(target) !== 'b.txt' ||
+              (await readIn(root, 'a.txt')) !== 'after\n'
+            )
+              return
+            state.isSecondHeld = true
+            holders.push(await holdFile(path.join(root, 'a.txt')))
+          },
+        }),
+      )
       const signal = new AbortController().signal
       // What Windows answers a rename over a held file, after the retries.
       await expect(
         landTeamTask(EN, 'en', deps, landingTask(fixture), signal, { allowProtected: false }),
       ).rejects.toMatchObject({ code: expect.stringMatching(/^(EPERM|EBUSY|EACCES)$/u) })
-
-      // Two files written, the held one and the last untouched; nothing
-      // staged is left; the record open, the landing's lock still standing.
-      await expectHalfTheBatch(root)
-      expect(await stagesIn(root)).toEqual([])
+      // It could not, so it claims nothing: the record open, the lock standing, as after a kill.
       expect(await landingStatuses(storage)).toEqual(['open'])
       expect(await hasFile(lockFile)).toBe(true)
-
-      // The program closes the file. Recovery still waits for the person to
-      // remove the lock, then this window rolls its own landing back at once.
-      holderProcess.stdin.end('\n')
-      await once(holderProcess, 'exit')
+      expect(await gitAddExit(root, 'a.txt')).not.toBe(0)
+      for (const holder of holders) await letGo(holder)
       expect(await recoverOpenLandings(EN, 'en', deps, signal)).toBe(0)
       await rm(lockFile)
       expect(await recoverOpenLandings(EN, 'en', deps, signal)).toBe(1)
       for (const file of BATCH) expect(await readIn(root, file)).toBe('before\n')
       expect(await hasFile(lockFile)).toBe(false)
-      expect(await landingRecords(storage)).toMatchObject([{ status: 'recovered', conflicts: [] }])
     } finally {
-      // Gone before its folder goes: Windows refuses to remove a file it holds.
-      if (holderProcess.exitCode === null) {
-        holderProcess.kill()
-        await once(holderProcess, 'exit')
-      }
+      for (const holder of holders) await letGo(holder)
       await fixture.dispose()
     }
-    // A PowerShell start, the rename's retries, and two recoveries.
+    // Two PowerShell starts, the rename's retries twice, and two recoveries.
   }, 120_000)
 })
