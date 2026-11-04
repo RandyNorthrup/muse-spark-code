@@ -809,7 +809,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('decideTeamMerge'),
     taskId: stringSchema,
-    decision: z.enum(['merge', 'discard']),
+    decision: z.enum(['merge', 'discard', 'undo']),
   }),
   // The "waiting for you" card's answer: queue, the main agent, raise, cancel.
   z.object({

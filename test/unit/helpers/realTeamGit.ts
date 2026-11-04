@@ -49,6 +49,7 @@ export function enginePortsWithoutWorker(input: {
   readonly repositoryRoot: () => string | undefined
   readonly storageRoot: string
   readonly isTrusted: () => boolean
+  readonly landing?: Parameters<typeof createEngineTeamPorts>[0]['landing']
 }): ReturnType<typeof createEngineTeamPorts> {
   return createEngineTeamPorts({
     repositoryRoot: input.repositoryRoot,
@@ -60,6 +61,7 @@ export function enginePortsWithoutWorker(input: {
     runGit: realTeamGit,
     now: () => Date.now(),
     log: silentCoreLog(),
+    landing: input.landing,
   })
 }
 

@@ -3468,10 +3468,20 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       resolve(choice)
       await Promise.resolve()
     },
+    openLandings: deps.merges.openLandings,
+    recoverLandings: deps.merges.recoverLandings,
     decideMerge: async (taskId, decision) => {
       if (decision === 'merge' && deps.state.get(TEAM_MERGE_PAUSE_STATE_KEY) === true)
         throw new Error(UI_TEXT.teamTaskBusy)
       const task = known(taskId)
+      if (decision === 'undo') {
+        const { undoMergeLanding } = await import('./teamMergeFlow')
+        await undoMergeLanding(task, mergeRefusals.get(taskId), deps, () => {
+          mergeRefusals.delete(taskId)
+        })
+        changed()
+        return
+      }
       if (task.awaiting !== undefined) {
         const completion = task.mergeCompletion
         await retireAttemptByDecision(task)

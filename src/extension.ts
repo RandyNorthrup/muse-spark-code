@@ -3699,6 +3699,19 @@ async function activateWindow(
           return models.map((model) => model.modelId)
         },
         capabilitiesForModel: teamCapabilitiesForModel,
+        landing: {
+          // A landing writes the file on disk: an editor's unsaved work there stops it first.
+          validateTarget: (file) => {
+            if (
+              vscode.workspace.textDocuments.some(
+                (document) =>
+                  document.isDirty && isSamePath(document.uri.fsPath, file, process.platform),
+              )
+            )
+              throw new Error(fill(UI_TEXT.teamTrafficNotices.landingUnsaved, { path: file }))
+            return Promise.resolve()
+          },
+        },
         startWorker: async ({
           folder,
           modelId,

@@ -1,8 +1,8 @@
 // M96b headless policy loads only for --team, after exec preflight.
 import { presetFromRead } from '../../host/team/providerPreset'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { availableParallelism, tmpdir } from 'node:os'
-import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type {
   TeamHostSeams,
@@ -22,6 +22,8 @@ import { TEAM_WORKSPACE_KEYS, hasRunnableTeamEntry } from '../../shared/teamConv
 import {
   EXEC_PROMPT_MAX_BYTES,
   EXEC_TEAM_GIT_OUTPUT_BYTES,
+  EXEC_TEAM_LANDING_FOLDER,
+  EXEC_TEAM_LANDING_FOLDER_MODE,
   EXEC_TEAM_RUN_PREFIX,
   EXEC_TEAM_BOARD_FILE,
   EXEC_TEAM_FILE_MODE,
@@ -79,6 +81,16 @@ export interface ExecTeam extends TeamHostSeams {
   /** Called after exec has resolved/validated its selected provider and model. */
   readonly prepare: (model: string) => Promise<void>
   readonly close: () => Promise<void>
+}
+
+/** Where this repository's team landings are journalled, private to the person. */
+async function landingStorage(deps: Pick<ExecTeamDeps, 'cwd' | 'providersFile'>): Promise<string> {
+  const key = createHash('sha256')
+    .update(await realpath(deps.cwd))
+    .digest('hex')
+  const folder = path.join(path.dirname(deps.providersFile), EXEC_TEAM_LANDING_FOLDER, key)
+  await mkdir(folder, { recursive: true, mode: EXEC_TEAM_LANDING_FOLDER_MODE })
+  return folder
 }
 
 function unavailable(tool: string): TeamToolResult {
@@ -369,7 +381,19 @@ export async function createExecTeam(
             providerService: presetOf,
             now: deps.now,
             log: deps.log,
+            // A run's folder goes with the run, so what could be left half landed is journalled
+            // beside the person's own data, one folder per repository. No one can be asked
+            // here: a record whose lock the person removed is settled by the next run.
+            landing: {
+              storage: await landingStorage(deps),
+              confirmTakeover: () => Promise.resolve(true),
+            },
           })
+          try {
+            await ports.merges.recoverLandings?.(false)
+          } catch (error: unknown) {
+            deps.log.warn(failureForLog(error))
+          }
           discardCopies = async () => {
             // Every copy gets its discard: one failure must not spare the
             // rest (the close-time reconcile removes what this misses).

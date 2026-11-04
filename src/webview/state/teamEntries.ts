@@ -80,6 +80,7 @@ export function teamEntryForItem(item: ItemSnapshot): TeamTranscriptEntry | unde
         affectedFiles: item.teamMerge.affectedFiles,
         protectedPaths: item.teamMerge.protectedPaths,
         conflictPaths: item.teamMerge.conflictPaths,
+        changedDuringLanding: item.teamMerge.changedDuringLanding,
         reviewVerdict: item.teamMerge.reviewVerdict,
         reviewerFindings: item.teamMerge.reviewerFindings,
         review: item.teamMerge.review,

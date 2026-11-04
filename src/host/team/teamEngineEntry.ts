@@ -4,5 +4,5 @@ import type { UiText } from '../../shared/l10n/en'
 import { createEngineTeamPorts, type EngineTeamPortsDeps } from './teamEnginePorts'
 export function engineTeamPorts(table: UiText, locale: string, deps: EngineTeamPortsDeps) {
   setUiText(table, locale)
-  return createEngineTeamPorts(deps)
+  return createEngineTeamPorts({ ...deps, ui: { table, locale } })
 }

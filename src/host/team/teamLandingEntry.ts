@@ -5,12 +5,18 @@ import { randomUUID } from 'node:crypto'
 import { UI_TEXT, GIT_METADATA_OPTIONS, HOOK_CONFIG_MAX_BYTES } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
-import { applyTeamMerge, TeamLanding } from '../../core/team/teamMerge'
-import type { TeamMergePort, TeamMergeRefusal } from '../../core/team/teamHostService'
+import { applyTeamMerge, TeamLanding, type LandingIntent } from '../../core/team/teamMerge'
+import type {
+  TeamLandingUndo,
+  TeamMergeOutcome,
+  TeamMergePort,
+  TeamMergeRefusal,
+  TeamOpenLanding,
+} from '../../core/team/teamHostService'
 import type { TeamGit } from '../../core/team/teamGit'
 import type { GitProcess } from '../git'
 import { isSamePath } from '../../core/paths'
-import { canonicalPath } from '../canonicalPath'
+import { canonicalPath, errnoCode } from '../canonicalPath'
 import { StagingCopy, checkIdentity, type TeamCheckIdentity } from './stagingCopy'
 import {
   LandingJournal,
@@ -20,14 +26,26 @@ import {
   scanLandingEntries,
   type LandingRecord,
 } from './landingJournal'
-import { knownRepositoryHolder, takeIndexLock, type LandingHint } from './gitIndexLock'
+import {
+  indexLockHolder,
+  knownRepositoryHolder,
+  takeIndexLock,
+  type LandingHint,
+} from './gitIndexLock'
 import { createTeamJournal, type TeamJournal } from './teamJournal'
-import { createWindowAuthority, type WindowAuthority, type WindowIdentity } from './windowIdentity'
+import {
+  createWindowAuthority,
+  createWindowIdentity,
+  type WindowAuthority,
+  type WindowIdentity,
+} from './windowIdentity'
 
 /** What the check approved: pass/fail plus the Git tree hash of the approved bytes. */
 export interface TeamCheckOutcome {
   readonly passed: boolean
   readonly treeSha?: string
+  /** The check that failed, for the person's refusal. */
+  readonly failed?: string
 }
 export interface TeamLandingPolicy {
   readonly owner: WindowIdentity
@@ -79,6 +97,8 @@ function createLandingStore(
   holder.store = storeFor(owner)
   return { store: holder.store, authority, storeFor }
 }
+type LandingFiles = ReturnType<typeof landingFileAccess>
+
 interface LandingDeps {
   readonly root: string
   readonly storage: string
@@ -158,10 +178,14 @@ function landingLockPorts(input: {
   }
 }
 
-/** The journal and file ports both landing constructions share verbatim. */
+/**
+The journal and file ports both landing constructions share verbatim. `back` is what putting
+files back goes through: a landing that was stopped still rolls back, so it asks only what any
+recovery asks.
+*/
 function landingJournalPorts(
   journal: LandingJournal,
-  access: ReturnType<typeof landingFileAccess>,
+  access: { readonly forward: LandingFiles; readonly back: LandingFiles },
   around: Pick<ConstructorParameters<typeof TeamLanding>[0], 'prepare' | 'close'>,
 ): Pick<
   ConstructorParameters<typeof TeamLanding>[0],
@@ -170,9 +194,9 @@ function landingJournalPorts(
   return {
     ...around,
     replace: (_folder, file, canWrite) =>
-      access.replace(file.path, file.before, file.after, canWrite),
-    recover: (intent, canWrite) => journal.recover(intent, access, canWrite),
-    undo: (intent, id, canWrite) => journal.undo(intent, id, access, canWrite),
+      access.forward.replace(file.path, file.before, file.after, canWrite),
+    recover: (intent, canWrite) => journal.recover(intent, access.back, canWrite),
+    undo: (intent, id, canWrite) => journal.undo(intent, id, access.back, canWrite),
   }
 }
 
@@ -211,6 +235,9 @@ async function canonicalLandingFolders(
 ): Promise<{ readonly root: string; readonly storage: string }> {
   return { root: await canonicalPath(deps.root), storage: await canonicalPath(deps.storage) }
 }
+
+/** What Windows answers a rename or removal over a file a program holds. */
+const HELD_CODES: ReadonlySet<string> = new Set(['EPERM', 'EBUSY', 'EACCES'])
 
 /** Existing review permission admits staging; no user-tree write precedes checked landing. */
 export async function landTeamTask(
@@ -260,6 +287,13 @@ export async function landTeamTask(
       throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
   }
   const access = landingFileAccess(root, staging, { validateTarget })
+  // Trust still binds a roll-back; the abort that stopped the landing does not.
+  const back = landingFileAccess(root, staging, {
+    validateTarget: async (file) => {
+      if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+      await policy.validateTarget(file)
+    },
+  })
   const retention = { copy: false }
   try {
     admit()
@@ -295,7 +329,12 @@ export async function landTeamTask(
     const isWithoutChecks = policy.checks().commands.length === 0
     const checkOutcome = isWithoutChecks ? undefined : await policy.runChecks(copy, signal)
     if (checkOutcome !== undefined && !checkOutcome.passed)
-      return { status: 'rework', written: [], conflicts: [] }
+      return {
+        status: 'rework',
+        written: [],
+        conflicts: [],
+        refusal: { kind: 'checks', action: 'recheck', check: checkOutcome.failed },
+      }
     admit()
     if (checkOutcome?.treeSha !== undefined) {
       await runGit([...GIT_METADATA_OPTIONS, '-c', 'core.hooksPath=/dev/null', 'add', '-A'], copy)
@@ -316,6 +355,9 @@ export async function landTeamTask(
           refusal: { kind: 'stale', action: 'rebuild' } satisfies TeamMergeRefusal,
         }
     }
+    admit()
+    // Before anything is written: the person's unsaved work stops a landing whole, not half way.
+    for (const name of merged.written) await policy.validateTarget(path.resolve(root, name))
     admit()
     const final = await staging.snapshot(copy)
     await runGit(['fetch', '--no-tags', '--no-write-fetch-head', '--', copy, final.commit], root)
@@ -361,17 +403,21 @@ export async function landTeamTask(
         return Promise.resolve(true)
       },
       confirmWithoutChecks: policy.confirmWithoutChecks,
-      ...landingJournalPorts(journal, access, {
-        prepare: async (intent) => {
-          admit()
-          retention.copy = true
-          await journal.prepare(intent)
+      ...landingJournalPorts(
+        journal,
+        { forward: access, back },
+        {
+          prepare: async (intent) => {
+            admit()
+            retention.copy = true
+            await journal.prepare(intent)
+          },
+          close: async (intent, status, conflicts) => {
+            await journal.close(intent, status, conflicts)
+            retention.copy = false
+          },
         },
-        close: async (intent, status, conflicts) => {
-          await journal.close(intent, status, conflicts)
-          retention.copy = false
-        },
-      }),
+      ),
       // Owner-store recovery: this window's own open landing recovers at
       // once; another window's recovers only after the person's confirmed
       // takeover, receipted in this window's store before any write.
@@ -399,7 +445,27 @@ export async function landTeamTask(
       return { status: 'merged', written: merged.written, conflicts: [] }
     const conflicts = 'paths' in landed ? [...landed.paths] : []
     let refusal: TeamMergeRefusal
+    let written: readonly string[] = []
     switch (landed.status) {
+      case 'changed': {
+        // What reached the tree stays named as written until Undo Merge puts it back.
+        written = merged.written.filter((file) =>
+          landed.paths.every((name) => !isSamePath(name, file, deps.platform)),
+        )
+        refusal = {
+          kind: 'changed',
+          action: 'recheck',
+          paths: landed.paths,
+          landingId: landed.intent.id,
+        }
+        break
+      }
+      case 'held': {
+        // A failure that is no file being held keeps its own words, with the tree already back.
+        if (!HELD_CODES.has(errnoCode(landed.cause) ?? '')) throw landed.cause
+        refusal = { kind: 'held', action: 'recheck', paths: landed.paths }
+        break
+      }
       case 'branched': {
         refusal = { kind: 'branched', holder: landed.holder, branch: landed.branch }
         break
@@ -422,13 +488,60 @@ export async function landTeamTask(
     }
     return {
       status: 'rework',
-      written: [],
-      conflicts,
+      written,
+      conflicts: landed.status === 'held' ? [...landed.kept] : conflicts,
       refusal,
     }
   } finally {
     if (!retention.copy) await rm(copy, { recursive: true, force: true })
   }
+}
+
+/** The landing that only puts back: recovery and Undo Merge, over a record already written. */
+function rollbackLanding(input: {
+  readonly deps: Omit<LandingDeps, 'writePaths'>
+  readonly admit: () => void
+  readonly root: string
+  readonly staging: StagingCopy
+  readonly journal: LandingJournal
+  readonly gitDirectory: string
+  readonly authorize: (intent: LandingIntent) => Promise<boolean>
+}): TeamLanding {
+  const { deps, admit, root, staging, journal, gitDirectory } = input
+  const { policy } = deps
+  const access = landingFileAccess(root, staging, { validateTarget: policy.validateTarget })
+  return new TeamLanding({
+    windowInstanceId: policy.owner.instanceId,
+    canonicalRoot: canonicalPath,
+    hasOpenLanding: () => Promise.resolve(false),
+    snapshot: (folder) => staging.snapshot(folder),
+    checkIdentity: () => Promise.resolve(checkIdentity(policy.checks())),
+    invalidate: () => Promise.resolve(),
+    ...landingLockPorts({
+      root,
+      gitDirectory,
+      owner: policy.owner,
+      policy,
+      platform: deps.platform,
+      admit,
+    }),
+    defer: () => Promise.reject(new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)),
+    confirmLanding: () => Promise.resolve(false),
+    confirmWithoutChecks: policy.confirmWithoutChecks,
+    ...landingJournalPorts(
+      journal,
+      { forward: access, back: access },
+      {
+        prepare: async (intent) => {
+          await journal.prepare(intent)
+        },
+        close: async (intent, status, conflicts) => {
+          await journal.close(intent, status, conflicts)
+        },
+      },
+    ),
+    authorizeRecovery: input.authorize,
+  })
 }
 
 /**
@@ -475,35 +588,15 @@ export async function recoverOpenLandings(
     return found === undefined ? journalStore : storeFor(found.storeOwner)
   }
   const journal = storeLandingJournal(ownerStoreOf)
-  const access = landingFileAccess(root, staging, { validateTarget: policy.validateTarget })
   const gitDirectory = await staging.gitDirectory(root)
-  const landing = new TeamLanding({
-    windowInstanceId: owner.instanceId,
-    canonicalRoot: canonicalPath,
-    hasOpenLanding: () => Promise.resolve(false),
-    snapshot: (folder) => staging.snapshot(folder),
-    checkIdentity: () => Promise.resolve(checkIdentity(policy.checks())),
-    invalidate: () => Promise.resolve(),
-    ...landingLockPorts({
-      root,
-      gitDirectory,
-      owner,
-      policy,
-      platform: deps.platform,
-      admit,
-    }),
-    defer: () => Promise.reject(new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)),
-    confirmLanding: () => Promise.resolve(false),
-    confirmWithoutChecks: policy.confirmWithoutChecks,
-    ...landingJournalPorts(journal, access, {
-      prepare: async (intent) => {
-        await journal.prepare(intent)
-      },
-      close: async (intent, status, conflicts) => {
-        await journal.close(intent, status, conflicts)
-      },
-    }),
-    authorizeRecovery: async (intent) => {
+  const landing = rollbackLanding({
+    deps,
+    admit,
+    root,
+    staging,
+    journal,
+    gitDirectory,
+    authorize: async (intent) => {
       admit()
       if (intent.windowInstanceId === owner.instanceId) return true
       const found = open.find((item) => item.record.id === intent.id)
@@ -524,4 +617,156 @@ export async function recoverOpenLandings(
     if (outcome.status === 'landed' || outcome.status === 'changed') recovered++
   }
   return recovered
+}
+
+/** Undo Merge over this window's landing that a changed file stopped, by M86's rule. */
+export async function undoTeamLanding(
+  table: UiText,
+  locale: string,
+  deps: Omit<LandingDeps, 'writePaths'>,
+  landingId: string,
+  taskId: string,
+  signal: AbortSignal,
+): Promise<TeamLandingUndo> {
+  setUiText(table, locale)
+  const { policy, runGit } = deps
+  const admit = landingAdmit(deps, signal)
+  const { root, storage } = await canonicalLandingFolders(deps)
+  const { store } = createLandingStore(storage, policy.owner, deps.platform)
+  const read = await store.read(`landing-${landingId}`, z.unknown())
+  if (read.kind !== 'record') throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
+  const record = parseLandingEntry(`landing-${landingId}`, read.value)
+  if (record.status !== 'changed') throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
+  const staging = new StagingCopy(
+    landingGit(admit, runGit),
+    process.env,
+    path.join(storage, 'landing'),
+  )
+  const undone = await rollbackLanding({
+    deps,
+    admit,
+    root,
+    staging,
+    journal: storeLandingJournal(() => store),
+    gitDirectory: await staging.gitDirectory(root),
+    authorize: () => Promise.resolve(true),
+  }).undo(record, taskId)
+  if (undone.status === 'busy' || undone.status === 'denied')
+    return { status: undone.status, kept: [] }
+  return { status: 'undone', kept: 'paths' in undone ? [...undone.paths] : [] }
+}
+
+/** The open landings for this root across every window's store: Traffic's recovery rows. */
+export async function openTeamLandings(
+  deps: Omit<LandingDeps, 'writePaths'>,
+): Promise<readonly TeamOpenLanding[]> {
+  const { root, storage } = await canonicalLandingFolders(deps)
+  const { store } = createLandingStore(storage, deps.policy.owner, deps.platform)
+  const scanned = await scanLandingEntries(store)
+  const rows: TeamOpenLanding[] = []
+  let lockPath: string | undefined
+  let isLockRead = false
+  for (const entry of scanned.entries) {
+    if (entry.raw.kind !== 'record') continue
+    const record = parseLandingEntry(entry.name, entry.raw.value)
+    if (record.status !== 'open' || (await canonicalPath(record.root)) !== root) continue
+    if (!isLockRead) {
+      isLockRead = true
+      const git = landingGit(landingAdmit(deps, new AbortController().signal), deps.runGit)
+      const gitDirectory = await new StagingCopy(git, process.env, storage).gitDirectory(root)
+      const holder = await indexLockHolder(gitDirectory)
+      lockPath = holder?.kind === 'lock' ? holder.path : undefined
+    }
+    rows.push({
+      id: record.id,
+      windowInstanceId: record.windowInstanceId,
+      paths: record.files.map((file) => file.path),
+      ...(lockPath !== undefined && { lockPath }),
+    })
+  }
+  return rows
+}
+
+/** What each surface brings to the checked landing; absent parts ask for nothing. */
+export interface EngineLandingPorts {
+  /** Another place for the journal and the staging copies than the engine's storage. */
+  readonly storage?: string
+  readonly checks?: () => TeamCheckIdentity
+  readonly runChecks?: TeamLandingPolicy['runChecks']
+  readonly validateTarget?: TeamLandingPolicy['validateTarget']
+  readonly hints?: TeamLandingPolicy['hints']
+  readonly confirmTakeover?: TeamLandingPolicy['confirmTakeover']
+}
+
+/**
+The product's landing for one window: its identity, and every task's work through the checked
+landing with recovery first. The merge card was the person's decision, and with no check set it
+is what asks: there is no separate prompt to answer (the record's first decision).
+*/
+export function createEngineLanding(
+  ui: { readonly table: UiText; readonly locale: string },
+  input: {
+    readonly root: () => Promise<string>
+    readonly storage: () => Promise<string>
+    readonly platform: NodeJS.Platform
+    readonly isTrusted: () => boolean
+    readonly runGit: TeamGit
+    readonly now: () => number
+    readonly ports: EngineLandingPorts | undefined
+  },
+) {
+  const owner = createWindowIdentity(input.now())
+  const { ports } = input
+  const policy = (confirmTakeover: TeamLandingPolicy['confirmTakeover']): TeamLandingPolicy => ({
+    owner,
+    checks:
+      ports?.checks ??
+      (() => ({ commands: [], platform: input.platform, setupCommand: '', cacheKey: '' })),
+    runChecks: ports?.runChecks ?? (() => Promise.resolve({ passed: true })),
+    confirmWithoutChecks: () => Promise.resolve(true),
+    validateTarget: ports?.validateTarget ?? (() => Promise.resolve()),
+    hints: ports?.hints ?? (() => Promise.resolve([])),
+    confirmTakeover,
+  })
+  const depsFor = async (confirmTakeover: TeamLandingPolicy['confirmTakeover']) => ({
+    root: await input.root(),
+    storage: ports?.storage ?? (await input.storage()),
+    platform: input.platform,
+    isTrusted: input.isTrusted,
+    runGit: input.runGit,
+    policy: policy(confirmTakeover),
+  })
+  const recover = async (confirm: TeamLandingPolicy['confirmTakeover'], signal: AbortSignal) =>
+    await recoverOpenLandings(ui.table, ui.locale, await depsFor(confirm), signal)
+  return {
+    land: async (
+      task: Parameters<TeamMergePort['merge']>[0],
+      signal: AbortSignal,
+      options: Parameters<TeamMergePort['merge']>[2],
+      writePaths: readonly string[] | undefined,
+    ): Promise<TeamMergeOutcome> => {
+      // What an earlier landing left goes first, or this one is refused as busy.
+      await recover(ports?.confirmTakeover, signal)
+      return await landTeamTask(
+        ui.table,
+        ui.locale,
+        { ...(await depsFor(undefined)), writePaths },
+        task,
+        signal,
+        options,
+      )
+    },
+    recover: async (isConfirmed: boolean, signal: AbortSignal): Promise<number> =>
+      await recover(isConfirmed ? () => Promise.resolve(true) : ports?.confirmTakeover, signal),
+    open: async () => await openTeamLandings(await depsFor(undefined)),
+    undo: async (taskId: string, landingId: string, signal: AbortSignal) =>
+      await undoTeamLanding(
+        ui.table,
+        ui.locale,
+        await depsFor(undefined),
+        landingId,
+        taskId,
+        signal,
+      ),
+  }
 }

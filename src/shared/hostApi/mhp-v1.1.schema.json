@@ -11686,7 +11686,7 @@
                       "properties": {
                         "type": { "type": "string", "const": "decideTeamMerge" },
                         "taskId": { "type": "string" },
-                        "decision": { "type": "string", "enum": ["merge", "discard"] }
+                        "decision": { "type": "string", "enum": ["merge", "discard", "undo"] }
                       },
                       "required": ["type", "taskId", "decision"],
                       "additionalProperties": false
@@ -14283,6 +14283,11 @@
                                     "type": "array",
                                     "items": { "type": "string" }
                                   },
+                                  "changedDuringLanding": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
                                   "reviewVerdict": { "type": "string" },
                                   "reviewerFindings": {
                                     "readOnly": true,
@@ -15680,6 +15685,11 @@
                                     "type": "array",
                                     "items": { "type": "string" }
                                   },
+                                  "changedDuringLanding": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
                                   "reviewVerdict": { "type": "string" },
                                   "reviewerFindings": {
                                     "readOnly": true,
@@ -16370,6 +16380,11 @@
                                     "items": { "type": "string" }
                                   },
                                   "conflictPaths": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
+                                  "changedDuringLanding": {
                                     "readOnly": true,
                                     "type": "array",
                                     "items": { "type": "string" }
@@ -18116,6 +18131,11 @@
                                           "type": "array",
                                           "items": { "type": "string" }
                                         },
+                                        "changedDuringLanding": {
+                                          "readOnly": true,
+                                          "type": "array",
+                                          "items": { "type": "string" }
+                                        },
                                         "reviewVerdict": { "type": "string" },
                                         "reviewerFindings": {
                                           "readOnly": true,
@@ -18758,6 +18778,11 @@
                                           "type": "array",
                                           "items": { "type": "string" }
                                         },
+                                        "changedDuringLanding": {
+                                          "readOnly": true,
+                                          "type": "array",
+                                          "items": { "type": "string" }
+                                        },
                                         "reviewVerdict": { "type": "string" },
                                         "reviewerFindings": {
                                           "readOnly": true,
@@ -19134,6 +19159,11 @@
                                           "items": { "type": "string" }
                                         },
                                         "conflictPaths": {
+                                          "readOnly": true,
+                                          "type": "array",
+                                          "items": { "type": "string" }
+                                        },
+                                        "changedDuringLanding": {
                                           "readOnly": true,
                                           "type": "array",
                                           "items": { "type": "string" }
@@ -19776,6 +19806,11 @@
                                           "items": { "type": "string" }
                                         },
                                         "conflictPaths": {
+                                          "readOnly": true,
+                                          "type": "array",
+                                          "items": { "type": "string" }
+                                        },
+                                        "changedDuringLanding": {
                                           "readOnly": true,
                                           "type": "array",
                                           "items": { "type": "string" }
@@ -29734,7 +29769,7 @@
                                               "taskId": { "type": "string" },
                                               "decision": {
                                                 "type": "string",
-                                                "enum": ["merge", "discard"]
+                                                "enum": ["merge", "discard", "undo"]
                                               }
                                             },
                                             "required": ["type", "taskId", "decision"],
@@ -34815,7 +34850,7 @@
                 "properties": {
                   "type": { "type": "string", "const": "decideTeamMerge" },
                   "taskId": { "type": "string" },
-                  "decision": { "type": "string", "enum": ["merge", "discard"] }
+                  "decision": { "type": "string", "enum": ["merge", "discard", "undo"] }
                 },
                 "required": ["type", "taskId", "decision"],
                 "additionalProperties": false
@@ -37256,6 +37291,11 @@
                               "type": "array",
                               "items": { "type": "string" }
                             },
+                            "changedDuringLanding": {
+                              "readOnly": true,
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
                             "reviewVerdict": { "type": "string" },
                             "reviewerFindings": {
                               "readOnly": true,
@@ -38616,6 +38656,11 @@
                               "type": "array",
                               "items": { "type": "string" }
                             },
+                            "changedDuringLanding": {
+                              "readOnly": true,
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
                             "reviewVerdict": { "type": "string" },
                             "reviewerFindings": {
                               "readOnly": true,
@@ -39287,6 +39332,11 @@
                               "items": { "type": "string" }
                             },
                             "conflictPaths": {
+                              "readOnly": true,
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
+                            "changedDuringLanding": {
                               "readOnly": true,
                               "type": "array",
                               "items": { "type": "string" }
@@ -40988,6 +41038,11 @@
                                     "type": "array",
                                     "items": { "type": "string" }
                                   },
+                                  "changedDuringLanding": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
                                   "reviewVerdict": { "type": "string" },
                                   "reviewerFindings": {
                                     "readOnly": true,
@@ -41606,6 +41661,11 @@
                                     "type": "array",
                                     "items": { "type": "string" }
                                   },
+                                  "changedDuringLanding": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
                                   "reviewVerdict": { "type": "string" },
                                   "reviewerFindings": {
                                     "readOnly": true,
@@ -41967,6 +42027,11 @@
                                     "items": { "type": "string" }
                                   },
                                   "conflictPaths": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
+                                  "changedDuringLanding": {
                                     "readOnly": true,
                                     "type": "array",
                                     "items": { "type": "string" }
@@ -42585,6 +42650,11 @@
                                     "items": { "type": "string" }
                                   },
                                   "conflictPaths": {
+                                    "readOnly": true,
+                                    "type": "array",
+                                    "items": { "type": "string" }
+                                  },
+                                  "changedDuringLanding": {
                                     "readOnly": true,
                                     "type": "array",
                                     "items": { "type": "string" }
@@ -51954,7 +52024,7 @@
                                         "taskId": { "type": "string" },
                                         "decision": {
                                           "type": "string",
-                                          "enum": ["merge", "discard"]
+                                          "enum": ["merge", "discard", "undo"]
                                         }
                                       },
                                       "required": ["type", "taskId", "decision"],

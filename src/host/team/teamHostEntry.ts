@@ -2,6 +2,7 @@
 // dist/teamHost.js, required only for a workspace that stores a team, so
 // neither activation nor a single-model conversation loads it (D6).
 import { setUiText } from '../../shared/l10n/text'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { UiText } from '../../shared/l10n/en'
 import { createTeamHostService } from '../../core/team/teamHost'
 import type {
@@ -19,7 +20,6 @@ import {
   type TeamWindowSettings,
 } from '../../shared/teamWindowProtocol'
 import type { TeamHostBundleDeps } from './teamEnginePorts'
-import type * as landingImpl from './teamLandingEntry'
 
 /** The workspace's scheduler settings, defaulted; malformed state reads as unset. */
 export function readTeamWindowSettings(state: TeamStatePort): TeamWindowSettings {
@@ -38,7 +38,11 @@ function lazyProcessWorkers(
   deps: NonNullable<TeamHostBundleDeps['processWorkers']>,
   runGit: TeamGit,
   state: TeamStatePort,
-): { readonly workers: TeamWorkerPort; readonly dispose: () => Promise<void> } {
+): {
+  readonly workers: TeamWorkerPort
+  readonly dispose: () => Promise<void>
+  readonly runChecks: ProcessTeamPorts['runLandingChecks']
+} {
   let loading: Promise<ProcessTeamPorts> | undefined
   let loaded: ProcessTeamPorts | undefined
   const start = async (): Promise<ProcessTeamPorts> => {
@@ -81,6 +85,25 @@ function lazyProcessWorkers(
     dispose: async () => {
       await loaded?.dispose()
     },
+    runChecks: async (folder, signal) => {
+      const ports = await load()
+      return await ports.runLandingChecks(folder, signal)
+    },
+  }
+}
+
+/** What a landing's admission is bound to: the person's checks and the slots' setup. */
+function landingChecks(deps: TeamHostBundleDeps) {
+  const { setupCommand, cacheKey } = readTeamWindowSettings(deps.state)
+  return {
+    commands: (deps.processWorkers?.checks() ?? []).map((check) => ({
+      name: check.name,
+      command: check.command,
+      timeoutSeconds: check.timeoutSeconds ?? 0,
+    })),
+    platform: deps.engine.platform,
+    setupCommand,
+    cacheKey,
   }
 }
 
@@ -92,10 +115,35 @@ export async function createTeamHost(
 ): Promise<TeamHostService> {
   setUiText(table, locale)
   const { engineTeamPorts } = await import('./teamEngineEntry')
-  const engine = engineTeamPorts(table, locale, deps.engine)
+  // Filled in once the engine's git exists; a landing cannot start before that.
+  const processSlot: { workers?: ReturnType<typeof lazyProcessWorkers> } = {}
+  const engine = engineTeamPorts(table, locale, {
+    ...deps.engine,
+    landing: {
+      ...deps.engine.landing,
+      ...(deps.processWorkers !== undefined && {
+        checks: () => landingChecks(deps),
+        runChecks: async (folder, signal) =>
+          (await processSlot.workers?.runChecks(folder, signal)) ?? { passed: false },
+      }),
+    },
+  })
   // The playbook's dispatch-base read rides the engine's git; the rounds are
   // the window's. Apart, neither governs: the binding needs both halves.
   const { git, ...ports } = engine
+  // What a window that died left open settles before this one claims anything. Another window's
+  // record waits for the person's Recover in Traffic, and the landing refuses until it has run.
+  try {
+    if (deps.engine.repositoryRoot() !== undefined) await ports.merges.recoverLandings?.(false)
+    const open =
+      deps.engine.repositoryRoot() === undefined
+        ? []
+        : ((await ports.merges.openLandings?.()) ?? [])
+    if (open.length > 0)
+      deps.log.warn(`A team landing is still open: ${open.flatMap((row) => row.paths).join(', ')}`)
+  } catch (error: unknown) {
+    deps.log.warn(`The open team landings could not be read: ${failureForLog(error)}`)
+  }
   const { playbook: rounds, processWorkers, ...rest } = deps
   // The window scheduler (M96c) loads with its own bundle, only for a team
   // workspace: the host service drives admission, the merge queue and the
@@ -118,6 +166,7 @@ export async function createTeamHost(
     processWorkers === undefined
       ? undefined
       : lazyProcessWorkers(table, locale, processWorkers, git, deps.state)
+  if (process !== undefined) processSlot.workers = process
   const service = createTeamHostService({
     ...rest,
     settings,
@@ -157,22 +206,6 @@ export {
 // Headless installs its lifecycle/merge policy around the same engine ports
 // (dist/teamEngine.js, loaded through teamEngineEntry as the editor loads it).
 export { createTeamHostService } from '../../core/team/teamHost'
-// Checked, journalled landing and owner-store recovery (M96c K/I/X2) load
-// with their own bundle (dist/teamLanding.js) on first use. Nothing in the
-// product calls them yet: the engine's merges port still merges in place
-// (docs/certification/cc-winteam.md, its first decision for the lead).
-export async function landTeamTask(
-  ...args: Parameters<typeof landingImpl.landTeamTask>
-): ReturnType<typeof landingImpl.landTeamTask> {
-  const landing = await import('./teamLandingEntry')
-  return await landing.landTeamTask(...args)
-}
-export async function recoverOpenLandings(
-  ...args: Parameters<typeof landingImpl.recoverOpenLandings>
-): ReturnType<typeof landingImpl.recoverOpenLandings> {
-  const landing = await import('./teamLandingEntry')
-  return await landing.recoverOpenLandings(...args)
-}
 export { setUiText } from '../../shared/l10n/text'
 export { teamProgramFreeGit } from '../../core/team/teamWorkspaces'
 // The `team` MCP server Muse Code orchestrators reach (M96 lane T) loads
