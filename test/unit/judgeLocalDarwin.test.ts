@@ -112,12 +112,17 @@ describe.skipIf(process.platform !== 'darwin')('M98 macOS native proofs', () => 
     }
   })
   it('invalidates exec even when the watched PID survives', async () => {
-    const child = spawn('/bin/sh', ['-c', "read line; exec /bin/sh -c 'read line'"], {
+    const child = spawn('/bin/sh', ['-c', "echo up; read line; exec /bin/sh -c 'read line'"], {
       env: {},
-      stdio: ['pipe', 'ignore', 'ignore'],
+      stdio: ['pipe', 'pipe', 'ignore'],
     })
     await once(child, 'spawn')
     if (!child.pid) throw new Error('missing fixture pid')
+    // Apple's /bin/sh re-executes as the shell /private/var/select/sh names (man sh). A watch set
+    // before that exec sees it and rightly says the process is not the one it watched: the shell's
+    // own word says that exec is over (runs 41590781372, 41619068707, 41738951665; passed on
+    // 41677635406 and 41723994114 with no change here).
+    await once(child.stdout, 'data')
     const lease = await darwinProcessLease(helper, child.pid, signal())
     try {
       expect(await lease.isAlive()).toBe(true)

@@ -503,7 +503,7 @@ describe.runIf(IS_WINDOWS)('ContainedJob on Windows (native)', () => {
     expect(everNamed()).toHaveLength(2)
   })
 
-  it('ends the whole tree when the helper is lost, fails the call, and forgets the job only then', () => {
+  it('ends the whole tree when the helper is lost, fails the call, and forgets the job only then', async () => {
     const pids = path.join(storage.dir, 'lost-helper-pids.json')
     const job = contained()
     // The call starts a detached grandchild, kills the helper it runs under, and stays.
@@ -516,9 +516,11 @@ describe.runIf(IS_WINDOWS)('ContainedJob on Windows (native)', () => {
     expect(result.status).toBeNull()
     expect(result.error).toBeInstanceOf(Error)
     const tree = treeSchema.parse(JSON.parse(readFileSync(pids, 'utf8')))
-    // The call has returned: the operating system ended the job with its helper.
-    expect(isRunning(tree.parent)).toBe(false)
-    expect(isRunning(tree.child)).toBe(false)
+    // The call has returned with the helper gone, and the operating system is ending the job its
+    // handle held: kill-on-close terminates the members, and each is gone when its threads have
+    // run down, a moment after the helper (run 41738951665). Nobody here asks: only the system can
+    // have ended them.
+    expect(await hasHappened(() => !isRunning(tree.parent) && !isRunning(tree.child))).toBe(true)
     // The job was named while it lived, and let go only after its end was seen.
     expect(everNamed()).toHaveLength(1)
     expect(published.at(-1)).toEqual([])

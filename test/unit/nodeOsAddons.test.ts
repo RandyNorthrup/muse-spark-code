@@ -42,7 +42,6 @@ const FIRMWARE_TRANSCRIPTS = fileURLToPath(
   new URL('../../test/fixtures/nodeos-firmware/', import.meta.url),
 )
 const NVIDIA_PRIMARY = '02182E60104FCDC26EAE1B8597A5D4CB8793F200'
-const PROBE_TIMEOUT_MS = 8000
 
 function hasGpg(): boolean {
   try {
@@ -53,23 +52,6 @@ function hasGpg(): boolean {
   }
 }
 const HAS_GPG = hasGpg()
-
-function hasSnapshot(): boolean {
-  try {
-    execFileSync(
-      process.execPath,
-      [
-        '--eval',
-        'fetch("https://snapshot.debian.org/mr/binary/firmware-iwlwifi/").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))',
-      ],
-      { stdio: 'ignore', timeout: PROBE_TIMEOUT_MS },
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-const HAS_SNAPSHOT = hasSnapshot()
 
 function parseManifestObject(text: string): Record<string, unknown> {
   const data: unknown = JSON.parse(text)
@@ -403,6 +385,8 @@ describe('nvidia key pin', () => {
   })
 })
 
+// The live answer is a third party's speed, not this code's: it is node-os.yml's own step, 'base
+// firmware set, live', on every change to the set. It passed this file's 5 s on run 41738951665.
 describe('check-firmware', () => {
   it('resolves the real firmware set from transcripts', () => {
     const run = runNodeScript(CHECK_FIRMWARE, [
@@ -451,12 +435,6 @@ describe('check-firmware', () => {
     ])
     expect(badBase.status).toBe(2)
     expect(badBase.out).toContain('must be an https URL')
-  })
-
-  it.runIf(HAS_SNAPSHOT)('resolves the real firmware set live', () => {
-    const run = runNodeScript(CHECK_FIRMWARE, ['--firmware', FIRMWARE])
-    expect(run.status).toBe(0)
-    expect(run.out).toContain('all 7 packages resolve')
   })
 })
 

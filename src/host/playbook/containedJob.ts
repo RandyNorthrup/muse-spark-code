@@ -241,8 +241,10 @@ export class ContainedJob {
   /**
   Lets a job go and waits to see it end. Its helper ends the job on a
   closed pipe, and the job is kill-on-close on the helper's handle, so a
-  helper that is gone is a job that is over. A helper that stays is ended
-  by name. Only a job seen to be over leaves the published names.
+  helper that is gone is a job that is over: nothing in it can be asked or
+  left behind, though a lost helper's members may take a moment longer to
+  run down, which no handle here can see. A helper that stays is ended by
+  name. Only a job seen to be over leaves the published names.
   */
   private retire(session: Session): void {
     try {
