@@ -8376,6 +8376,13 @@
     },
     {
       "route": "exec",
+      "name": "exec: --mcp-always-load <value>",
+      "description": "Keep this MCP server’s tools loaded while --mcp-defer-tokens defers the rest; repeat it for more servers.",
+      "text": { "cli": "mcp-always-load" },
+      "contract": { "type": "string", "repeatable": true, "purpose": "mcp-always-load" }
+    },
+    {
+      "route": "exec",
       "name": "exec: --max-output-tokens <value>",
       "description": "Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.",
       "text": { "cli": "max-output-tokens" },

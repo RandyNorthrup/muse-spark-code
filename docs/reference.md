@@ -4580,6 +4580,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --max-requests <value>`: Set the maximum number of model requests; without it, there is no request limit. `{"type":"string","repeatable":false,"minimum":1,"purpose":"maxRequests"}`
 - `exec: --max-tool-output-bytes <value>`: Raise the per-tool-result byte guard for this run. `{"type":"string","repeatable":false,"purpose":"max-tool-output-bytes"}`
 - `exec: --mcp-defer-tokens <value>`: Defer MCP tool schemas past this many estimated definition tokens, loading them through tool search; 0 always loads every schema. `{"type":"string","repeatable":false,"purpose":"mcp-defer-tokens"}`
+- `exec: --mcp-always-load <value>`: Keep this MCP server’s tools loaded while --mcp-defer-tokens defers the rest; repeat it for more servers. `{"type":"string","repeatable":true,"purpose":"mcp-always-load"}`
 - `exec: --max-output-tokens <value>`: Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it. `{"type":"string","repeatable":false,"minimum":1,"unit":"tokens","purpose":"max-output-tokens"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`

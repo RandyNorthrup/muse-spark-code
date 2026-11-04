@@ -142,6 +142,41 @@ describe('M80 args (A1–A10, F1)', () => {
     const search: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(1).toAmount() }
     expect(isHeadlessPaidUseAllowed(rich, richUsd, false, search, false)).toBe(false)
   })
+  // The per-server opt-out from MCP deferral, for one run: a list, as --untrusted-file is.
+  it('takes the MCP servers that always load, repeated, through the real command line', () => {
+    const parsed = parseCommandLine([
+      'exec',
+      '--backend',
+      'modelApi',
+      '--max-budget-usd',
+      '1',
+      '--mcp-defer-tokens',
+      '100',
+      '--mcp-always-load',
+      'github',
+      '--mcp-always-load',
+      'slack',
+      'task',
+    ])
+    if (parsed.command !== 'exec') throw new Error('exec did not parse')
+    expect(parsed.options.mcpAlwaysLoad).toEqual(['github', 'slack'])
+    expect(parsed.options.mcpDeferTokens).toBe(100)
+    // What the run's agent is built from carries the list on.
+    expect(serveOptionsFor(parsed.options).mcpAlwaysLoad).toEqual(['github', 'slack'])
+  })
+
+  it('refuses an always-load flag off the Model API, and one with no name', () => {
+    const museCode = parseExec({ backend: 'museCode', 'mcp-always-load': ['github'] }, ['task'])
+    expect(museCode.ok).toBe(false)
+    const values = { backend: 'modelApi', 'max-budget-usd': '1' }
+    expect(parseExec({ ...values, 'mcp-always-load': [' '] }, ['task'])).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.execServerNameEmpty, { flag: '--mcp-always-load' }),
+    })
+    const plain = parseExec(values, ['task'])
+    expect(plain.ok && plain.options.mcpAlwaysLoad).toEqual([])
+  })
+
   it('M106 accepts a schema file only on the bounded Model API path and omits the unused option', () => {
     const values = { backend: 'modelApi', 'max-budget-usd': '1' }
     const plain = parseExec(values, ['task'])

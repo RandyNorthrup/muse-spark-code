@@ -956,6 +956,7 @@ function modelApiManager(
     maxToolOutputBytes: () => deps.options.maxToolOutputBytes,
     // 4-H4: the headless run's --mcp-defer-tokens; the setting default otherwise.
     mcpDeferThresholdTokens: () => deps.options.mcpDeferTokens,
+    mcpAlwaysLoadServers: () => deps.options.mcpAlwaysLoad,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
     remainingModelCalls: deps.exec?.remainingModelCalls,
