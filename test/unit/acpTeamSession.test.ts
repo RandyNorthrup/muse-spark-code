@@ -8,15 +8,31 @@
 // (a start that cannot complete is the worker's real failure), and the
 // merge case restores a finished task the real end-of-task sequence
 // committed, as a restart would find it.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  truncateSync,
+  writeFileSync,
+} from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { createAcpTeam, type AcpTeamDeps } from '../../src/acp/acpTeamEntry'
+import { cardFailureText, createAcpTeam, type AcpTeamDeps } from '../../src/acp/acpTeamEntry'
 import { normalizeTeamPath } from '../../src/acp/teamContracts'
 import type { createAcpAgent } from '../../src/acp/agent'
-import type { AcpTeamPort, AcpTeamSessionHandler } from '../../src/acp/teamPort'
+import {
+  isAcpTeamRefusal,
+  type AcpTeamPort,
+  type AcpTeamSessionHandler,
+} from '../../src/acp/teamPort'
+import { teamJsonPath } from '../../src/core/team/teamConfig'
 import {
   commitTaskBranch,
   publishTaskRef,
@@ -32,8 +48,10 @@ import {
   ACP_SESSIONS_SUBFOLDER,
   ACP_TEAM_BOARD_FILE,
   ACP_TEAM_STORAGE_FOLDER,
+  TEAM_MODEL_TEXT,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import type { TeamSnapshot } from '../../src/shared/team'
 import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
 import { realTeamGit, scratchTeamRepo } from './helpers/realTeamGit'
@@ -41,6 +59,7 @@ import { realTeamGit, scratchTeamRepo } from './helpers/realTeamGit'
 const log = stderrLogger(() => undefined, 'warn')
 const ORCHESTRATOR = 'probe-custom/custom-model'
 const WORKER = 'probe-offable/offable-model'
+const TWO_GIB_AND_A_BYTE = 2 ** 31 + 1
 const folders: string[] = []
 afterEach(() => {
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
@@ -50,6 +69,12 @@ function scratch(prefix: string): string {
   const folder = mkdtempSync(path.join(tmpdir(), prefix))
   folders.push(folder)
   return folder
+}
+
+/** Makes the file, empty, and hands its name on. */
+function openAndClose(file: string): string {
+  closeSync(openSync(file, 'w'))
+  return file
 }
 
 /** The stored team the panel's Roles section would have written. */
@@ -120,6 +145,16 @@ async function errorOf(request: Promise<unknown>): Promise<string | undefined> {
     return error instanceof Error ? error.message : String(error)
   }
   return undefined
+}
+
+/** The error a request failed with; one that succeeds fails the case. */
+async function failureOf(request: Promise<unknown>): Promise<unknown> {
+  try {
+    await request
+  } catch (error: unknown) {
+    return error
+  }
+  throw new Error('expected this to fail')
 }
 
 /** Polls one condition the product itself drives; a timeout is the failure. */
@@ -768,6 +803,128 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
       expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
       await session.close()
       expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  // RVACPTEAM's open P3s, each on the real team host and the real filesystem.
+  it('says a card that failed for real in the generic words, never a machine’s code', async () => {
+    const updates: acp.SessionUpdate[] = []
+    const { repo, port, session } = await restoredMerge('merge', {
+      mode: () => 'manual',
+      sendUpdate: (update) => {
+        updates.push(update)
+      },
+      requestPermission: () =>
+        Promise.resolve({ outcome: { outcome: 'selected' as const, optionId: 'merge' } }),
+    })
+    try {
+      // Git's own lock stands in the way, so the landing fails for real.
+      writeFileSync(path.join(repo, '.git', 'index.lock'), '')
+      const result = await port
+        .seamsFor(repo)
+        .teamRunner.merge({ task_id: 'task-merge' }, context())
+      expect(result.output).not.toContain('Error:')
+      const said = () =>
+        updates.flatMap((update) =>
+          update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+            ? update.content.text
+            : [],
+        )
+      await eventually(() => said().length > 0, 'the failed card’s sentence')
+      expect(said()).toEqual([UI_TEXT.actionFailed])
+      rmSync(path.join(repo, '.git', 'index.lock'))
+      await session.close()
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('lets a card’s own words through, and keeps a place on this machine out', async () => {
+    const folder = scratch('acp-team-words-')
+    const missing = path.join(folder, 'missing')
+    // Real failures that name the place: the filesystem's, and git's.
+    const fromFile = await failureOf(readFile(missing))
+    const fromGit = await failureOf(realTeamGit(['-C', missing, 'status'], folder))
+    for (const failure of [fromFile, fromGit]) {
+      expect(String(failure)).toContain('missing')
+      expect(cardFailureText(failure)).toBe(UI_TEXT.actionFailed)
+    }
+    expect(cardFailureText(new Error(UI_TEXT.teamTaskBusy))).toBe(UI_TEXT.teamTaskBusy)
+    expect(cardFailureText(new Error(TEAM_MODEL_TEXT.hostMergePlanMode))).toBe(
+      TEAM_MODEL_TEXT.hostMergePlanMode,
+    )
+    expect(cardFailureText(new Error('unknownTask'))).toBe(UI_TEXT.actionFailed)
+    expect(cardFailureText('not an error')).toBe(UI_TEXT.actionFailed)
+  })
+
+  it('waits for an aborted worker before the team is gone', async () => {
+    const { repo, held, port } = await heldTeam()
+    await delegateOne(port, repo)
+    await eventually(() => held.gates.length === 1, 'the worker start')
+    let isDisposed = false
+    const disposing = (async () => {
+      await port.dispose()
+      isDisposed = true
+    })()
+    // The worker is still at its gate, however long this looks.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    expect(isDisposed).toBe(false)
+    held.gates[0]?.reject(new Error('the worker conversation could not start'))
+    await disposing
+    expect(isDisposed).toBe(true)
+  })
+
+  it('keeps an unrelated failure’s own kind: a board that cannot be read is no refusal', async () => {
+    const repo = await gitRepo()
+    const dataFolder = scratch('acp-team-data-')
+    writeStoredTeam(dataFolder, repo, storedTeam(WORKER))
+    mkdirSync(path.join(dataFolder, 'acp', workspaceKey(repo), ACP_TEAM_BOARD_FILE), {
+      recursive: true,
+    })
+    const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
+    try {
+      const failure = await failureOf(port.prepareNew(repo, ORCHESTRATOR))
+      expect(failure).toBeInstanceOf(Error)
+      expect(isAcpTeamRefusal(failure)).toBe(false)
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('brands a stored-team sentence with its slot filled as a refusal', async () => {
+    const repo = await gitRepo()
+    const dataFolder = scratch('acp-team-data-')
+    writeStoredTeam(dataFolder, repo, storedTeam(WORKER))
+    const teamJson = teamJsonPath(repo, process.platform)
+    mkdirSync(path.dirname(teamJson), { recursive: true })
+    writeFileSync(teamJson, JSON.stringify({ sharedFiles: 1 }))
+    const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
+    try {
+      const failure = await failureOf(port.prepareNew(repo, ORCHESTRATOR))
+      expect(isAcpTeamRefusal(failure)).toBe(true)
+      expect(failure).toMatchObject({
+        message: fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'sharedFiles' }),
+      })
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('reads a stored file no further than its bound, however large the file is', async () => {
+    const repo = await gitRepo()
+    const dataFolder = scratch('acp-team-data-')
+    const stored = storedTeamSnapshotFile(dataFolder, repo)
+    mkdirSync(path.dirname(stored), { recursive: true })
+    // Past what a whole-file read can take at all (2 GiB, ERR_FS_FILE_TOO_LARGE), and
+    // sparse where the system can: the reader that stops at its bound never knows.
+    truncateSync(openAndClose(stored), TWO_GIB_AND_A_BYTE)
+    const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
+    try {
+      const failure = await failureOf(port.prepareNew(repo, ORCHESTRATOR))
+      expect(isAcpTeamRefusal(failure)).toBe(true)
+      expect(failure).toMatchObject({ message: UI_TEXT.execTeamStateUnreadable })
     } finally {
       await port.dispose()
     }

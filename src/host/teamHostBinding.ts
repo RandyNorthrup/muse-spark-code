@@ -463,7 +463,8 @@ export class TeamHostBinding implements TeamSurfacePort {
     void service.probeEntries()
   }
 
-  public async dispose(): Promise<void> {
+  /** `waitForWorkers` holds the end until each aborted worker has finished. */
+  public async dispose(options?: { readonly waitForWorkers: boolean }): Promise<void> {
     this.isDisposed = true
     this.mcpModule?.server.close()
     this.mcpModule = undefined
@@ -473,6 +474,6 @@ export class TeamHostBinding implements TeamSurfacePort {
     this.unsubscribe?.()
     const service = this.service
     this.service = undefined
-    await service?.dispose()
+    await service?.dispose(options)
   }
 }
