@@ -56,7 +56,12 @@ import {
 import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
 import type { SubscriptionUsage } from '../../shared/usage'
 import type { CoreLogger } from '../../core/logging'
-import { UI_TEXT, CONTEXT_PRESSURE_HIGH, CONTEXT_PRESSURE_MEDIUM } from '../../shared/constants'
+import {
+  CONTEXT_PRESSURE_HIGH,
+  CONTEXT_PRESSURE_MEDIUM,
+  RESOURCE_MUSE_TERMINATE_GRACE_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import {
@@ -1009,7 +1014,13 @@ export class ExternalOrchestratorHost implements AgentHost {
     const live = this.live
     if (live?.child.stdout?.readableEnded !== true) return
     endAgentProcess(live.child, this.deps.platform)
+    // Its output is closed, so nothing it could still do is wanted; one that ignores the request
+    // must not hold the person's next step for ever.
+    const forced = setTimeout(() => {
+      endAgentProcess(live.child, this.deps.platform, 'SIGKILL')
+    }, RESOURCE_MUSE_TERMINATE_GRACE_MS)
     await live.exited
+    clearTimeout(forced)
   }
 
   private async ensureProcess(cwd: string): Promise<LiveProcess> {
@@ -1497,16 +1508,31 @@ function isMissingPath(error: unknown): boolean {
   )
 }
 
+/**
+A signal to the agent's group that did not land because the group has ended: gone, or on macOS
+(EPERM) holding only members that have exited and not been reaped, which `kill` refuses for a
+group though it accepts the one process.
+*/
+function isGroupEnded(error: unknown): boolean {
+  return (
+    isMissingPath(error) || (error instanceof Error && 'code' in error && error.code === 'EPERM')
+  )
+}
+
 /** Ends the agent with its process tree (its group off Windows). */
-function endAgentProcess(child: ChildProcess, platform: NodeJS.Platform): void {
+function endAgentProcess(
+  child: ChildProcess,
+  platform: NodeJS.Platform,
+  signal: NodeJS.Signals = 'SIGTERM',
+): void {
   if (child.exitCode !== null || child.signalCode !== null) return
   if (platform !== 'win32' && child.pid !== undefined) {
     try {
-      process.kill(-child.pid, 'SIGTERM')
+      process.kill(-child.pid, signal)
       return
     } catch (error: unknown) {
-      if (!isMissingPath(error)) throw error
+      if (!isGroupEnded(error)) throw error
     }
   }
-  child.kill()
+  child.kill(signal)
 }

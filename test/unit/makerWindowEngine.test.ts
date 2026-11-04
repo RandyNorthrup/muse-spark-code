@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, mkdir, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MakerEngine } from '../../src/host/maker/makerEngine'
@@ -62,6 +62,7 @@ async function harness(options?: {
   trusted?: boolean
   interactive?: boolean
   workspaceRoot?: string | undefined
+  env?: NodeJS.ProcessEnv
 }): Promise<EngineHarness> {
   const root = await mkdtemp(path.join(makerTempRoot(), 'mwe-'))
   roots.push(root)
@@ -141,7 +142,7 @@ async function harness(options?: {
     },
     log: quiet,
     platform: native.platform,
-    env: native.env,
+    env: { ...native.env, ...options?.env },
     packageRoot: native.packageRoot,
     dataDirectory: path.join(root, 'data'),
     workspaceRoot: workspace,
@@ -460,23 +461,39 @@ describe('window maker engine tools', () => {
       fixture.engine.action(sendMessage('bare', 'G1 X30'), new AbortController().signal),
     ).rejects.toThrow()
   })
-  it('lists state with machines while enabled, and refuses while disabled or untrusted', async () => {
+  it('lists state with machines while enabled, and refuses while disabled or untrusted', async ({
+    onTestFailed,
+  }) => {
+    // What this case waited on, for a log: it passed 15 s on three hosted runs (CC-INT11FIX5).
+    const started = performance.now()
+    const reached: string[] = []
+    const reach = (step: string) => {
+      reached.push(`${step} at ${String(Math.round(performance.now() - started))} ms`)
+    }
+    onTestFailed(() => {
+      console.error(`makerWindowEngine case reached: ${reached.join(', ')}`)
+    })
     const fixture = await harness()
     const server = await machineSimulator()
     closers.push(server.close)
     await registerPrinter(fixture, server, undefined)
+    reach('registered')
     const off = makerHostMessageSchema.parse(await fixture.engine.listDevices())
+    reach('listed with hardware off')
     if (off.type !== 'makerState') throw new Error('state misparsed')
     expect(off.hardwareEnabled).toBe(false)
     expect(off.machines).toHaveLength(1)
     expect(off.ports).toEqual([])
     await fixture.engine.setHardware(true, 'bench')
+    reach('hardware on')
     const on = makerHostMessageSchema.parse(await fixture.engine.listDevices())
+    reach('listed the ports')
     if (on.type !== 'makerState') throw new Error('state misparsed')
     expect(on.hardwareEnabled).toBe(true)
     expect(on.machines).toHaveLength(1)
     expect(Array.isArray(on.ports)).toBe(true)
     await fixture.engine.setHardware(false)
+    reach('hardware off')
     await expect(
       fixture.engine.action(statusMessage('printer'), new AbortController().signal),
     ).rejects.toThrow(UI_TEXT.makerHardwareDisabled)
@@ -486,6 +503,23 @@ describe('window maker engine tools', () => {
     ).rejects.toThrow(UI_TEXT.makerTrustRequired)
     fixture.trusted.value = true
   })
+  it.runIf(process.platform === 'win32')(
+    'lists ports through Windows PowerShell’s own modules, whatever path the window inherited',
+    async () => {
+      // PowerShell 7's path lists its own copies of the core modules first, as this folder does.
+      const inherited = await mkdtemp(path.join(makerTempRoot(), 'mwe-modules-'))
+      roots.push(inherited)
+      await mkdir(path.join(inherited, 'CimCmdlets'))
+      await writeFile(
+        path.join(inherited, 'CimCmdlets', 'CimCmdlets.psm1'),
+        "function Get-CimInstance { [pscustomobject]@{ Name = 'Copy (COM999)'; PNPDeviceID = 'COPY\\1' } }\nExport-ModuleMember -Function Get-CimInstance\n",
+      )
+      const fixture = await harness({ env: { PSModulePath: inherited } })
+      await fixture.engine.setHardware(true, 'bench')
+      const listed = await fixture.engine.listPorts()
+      expect(listed.map((port) => port.port)).not.toContain('COM999')
+    },
+  )
   it('refuses status for an unknown machine', async () => {
     const fixture = await harness()
     await fixture.engine.setHardware(true, 'bench')

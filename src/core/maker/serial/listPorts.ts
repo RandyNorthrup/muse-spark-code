@@ -26,6 +26,14 @@ export interface PortListDependencies {
   }>
 }
 
+/**
+Windows' port list. Each command outside PowerShell's core names its module, so PowerShell imports
+that module and never looks through every module on its path for the command: a module of the
+person's that exports the same name would answer the list instead, and on a machine full of modules
+the look can cost far more than the list.
+*/
+export const WINDOWS_PORT_LIST_SCRIPT = String.raw`Microsoft.PowerShell.Utility\ConvertTo-Json -Compress -InputObject @(CimCmdlets\Get-CimInstance Win32_PnPEntity -Filter "PNPClass='Ports'" | ForEach-Object { $portName = (Microsoft.PowerShell.Management\Get-ItemProperty -LiteralPath ('Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\' + $_.PNPDeviceID + '\Device Parameters') -Name PortName -ErrorAction SilentlyContinue).PortName; [pscustomobject]@{ Name = $_.Name; PNPDeviceID = $_.PNPDeviceID; PortName = $portName } })`
+
 /** Discovery has no serial provider or open primitive by construction. */
 export async function listSerialPorts(deps: PortListDependencies): Promise<SerialIdentity[]> {
   let ports: SerialIdentity[]
@@ -48,7 +56,7 @@ export async function listSerialPorts(deps: PortListDependencies): Promise<Seria
             '-NoProfile',
             '-NonInteractive',
             '-Command',
-            String.raw`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_PnPEntity -Filter "PNPClass='Ports'" | ForEach-Object { $portName = (Get-ItemProperty -LiteralPath ('Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\' + $_.PNPDeviceID + '\Device Parameters') -Name PortName -ErrorAction SilentlyContinue).PortName; [pscustomobject]@{ Name = $_.Name; PNPDeviceID = $_.PNPDeviceID; PortName = $portName } })`,
+            WINDOWS_PORT_LIST_SCRIPT,
           ]),
           deps.maxBytes,
         )
