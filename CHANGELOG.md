@@ -74,6 +74,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **The hardware Stop on a page never looks live before it is.** The Stop a chat panel
+  paints before its code loads did nothing and said nothing if pressed in that moment; it
+  is now disabled until it works, then answers. The status bar's Stop was never affected.
+  It also no longer appears on Devices, reports, usage, Models & Agents, the judge wizard
+  or the maker preview, where nothing could ever answer it.
 - **Editor tabs close with Delete, and a screen reader can tell a tab from its close
   control.** In the node workspace's editor the close mark sat inside the tab, one
   control nested in another. The mark stays for the pointer; a focused tab closes with

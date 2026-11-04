@@ -24,6 +24,8 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
   stop.addEventListener('click', () => {
     host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop' })
   })
+  // The host paints it disabled; it is live from here, not one moment sooner.
+  stop.disabled = false
   fallback.replaceChildren(stop)
   document.body.append(fallback)
   const shouldReopen = isMakerReloadPending()

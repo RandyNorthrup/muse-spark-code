@@ -44,9 +44,10 @@ describe('buildWebviewHtml', () => {
   it('renders localized Stop in the static shell before executable scripts, allowing only blob workers', () => {
     const built = buildWebviewHtml({
       ...options,
+      hasMakerStop: true,
       l10n: { locale: 'de', table: { ...EN, makerStopAll: '<Stop & machines>' } },
     })
-    expect(built).toContain('<button type="button">&lt;Stop &amp; machines&gt;</button>')
+    expect(built).toContain('<button type="button" disabled>&lt;Stop &amp; machines&gt;</button>')
     expect(built.indexOf('id="maker-stop-shell"')).toBeLessThan(
       built.indexOf(`src="${options.scriptUri}"`),
     )
@@ -54,6 +55,15 @@ describe('buildWebviewHtml', () => {
     const tasks = buildWebviewHtml({ ...options, surface: 'tasks' })
     expect(tasks).not.toContain('maker-stop-shell')
     expect(tasks).not.toContain('worker-src')
+  })
+
+  // Only the chat bundle wires the static Stop (`listenForMaker`). Devices, the
+  // maker preview, reports, usage, Models & Agents and the judge wizard all build
+  // their documents here and never answer it, so none of them may paint it.
+  it('paints the Stop only for the document that says it wires it', () => {
+    expect(buildWebviewHtml(options)).not.toContain('maker-stop-shell')
+    expect(buildWebviewHtml({ ...options, surface: 'devices' })).not.toContain('maker-stop-shell')
+    expect(buildWebviewHtml({ ...options, documentId: 'DOC123' })).not.toContain('maker-stop-shell')
   })
 
   it('locks scripts to the nonce and forbids everything else by default', () => {
