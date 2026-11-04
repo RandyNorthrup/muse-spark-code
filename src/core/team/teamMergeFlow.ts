@@ -14,6 +14,7 @@ import type { TeamRoleConfig } from '../../shared/team'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
 import { isProtectedPath } from '../protectedPaths'
 import { isSameTeamModel } from './sameModel'
+import { mergeRefusalSentence } from './teamMergeRefusalWords'
 import type {
   TeamCardPort,
   TeamMergeDecision,
@@ -200,11 +201,7 @@ const mergeCard = (
 
 /** A refused landing the card itself must say; `changed` has its own lines and button. */
 function mergeRefusalWords(refusal: TeamMergeRefusal): string | undefined {
-  if (refusal.kind === 'held')
-    return fill(UI_TEXT.teamTrafficNotices.fileHeld, { path: (refusal.paths ?? []).join(', ') })
-  return refusal.kind === 'checks'
-    ? fill(UI_TEXT.teamTrafficNotices.checksFailed, { name: refusal.check ?? '' })
-    : undefined
+  return refusal.kind === 'changed' ? undefined : mergeRefusalSentence(refusal)
 }
 
 /**

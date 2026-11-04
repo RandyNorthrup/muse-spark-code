@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { createTeamHostService } from '../../src/core/team/teamHost'
+import { mergeRefusalSentence } from '../../src/core/team/teamMergeRefusalWords'
 import { projectTeamTraffic } from '../../src/host/team/teamTrafficProjection'
 import type {
   TeamCardItem,
@@ -579,6 +580,21 @@ describe('a refused solo chat turn moves down the main role of its agent (D261, 
   }, 60_000)
 })
 
+/** One task with these files, finished, its merge card open. */
+async function taskAtItsCard(
+  rig: RealRig,
+  brief: string,
+  files: Record<string, string>,
+): Promise<string> {
+  rig.plans.set(brief, { files })
+  const [task] = await delegate(rig, [{ brief, priority: 'normal' }])
+  if (task === undefined) throw new Error('delegation minted no id')
+  await waitDone(rig, task)
+  await rig.service.teamRunner.merge({ task_id: task }, toolContext(ORCHESTRATOR))
+  await expect.poll(() => openMergeCards(rig).length, { timeout: 30_000 }).toBe(1)
+  return task
+}
+
 describe('a file saved while a task lands (real host, real git)', () => {
   it('the card names it, Traffic offers Undo Merge, and Undo puts back only the landing', async () => {
     const state = { isSaved: false }
@@ -594,12 +610,11 @@ describe('a file saved while a task lands (real host, real git)', () => {
         },
       }),
     })
-    rig.plans.set('three files', { files: { 'a.txt': 'a\n', 'b.txt': 'b\n', 'c.txt': 'c\n' } })
-    const [task] = await delegate(rig, [{ brief: 'three files', priority: 'normal' }])
-    if (task === undefined) throw new Error('delegation minted no id')
-    await waitDone(rig, task)
-    await rig.service.teamRunner.merge({ task_id: task }, toolContext(ORCHESTRATOR))
-    await expect.poll(() => openMergeCards(rig).length, { timeout: 30_000 }).toBe(1)
+    const task = await taskAtItsCard(rig, 'three files', {
+      'a.txt': 'a\n',
+      'b.txt': 'b\n',
+      'c.txt': 'c\n',
+    })
     await rig.service.decideMerge(task, 'merge')
     await expect
       .poll(() => rig.service.mergeRefusal?.(task)?.kind, { timeout: 60_000 })
@@ -639,6 +654,37 @@ describe('a file saved while a task lands (real host, real git)', () => {
     await expect(rig.service.decideMerge(task, 'undo')).rejects.toThrow(
       UI_TEXT.teamTrafficDetails.changedSinceOpened,
     )
+    // Real git, a real worker process and a real landing.
+  }, 120_000)
+})
+
+describe('a lock held when a task lands (real host, real git)', () => {
+  it('the card and Traffic say one sentence, with the holder in words and the log', async () => {
+    const rig = await makeRig()
+    const task = await taskAtItsCard(rig, 'held lock', { 'a.txt': 'a\n' })
+    const lock = path.join(rig.repo, '.git', 'index.lock')
+    await writeFile(lock, '')
+    await rig.service.decideMerge(task, 'merge')
+    await expect
+      .poll(() => rig.service.mergeRefusal?.(task)?.kind, { timeout: 60_000 })
+      .toBe('branched')
+    const refusal = rig.service.mergeRefusal?.(task)
+    if (refusal === undefined) throw new Error('no refusal')
+    const sentence = mergeRefusalSentence(refusal)
+    expect(sentence).toContain('index.lock')
+    expect(sentence).toContain('agents/landing/')
+    expect(sentence).not.toContain('refs/heads')
+    expect(sentence).not.toContain('"')
+    expect(existsSync(path.join(rig.repo, 'a.txt'))).toBe(false)
+
+    const card = rig.cards.findLast((item) => item.kind === 'teamMerge')
+    if (card?.kind !== 'teamMerge') throw new Error('no merge card')
+    expect(card.teamDecision).toBe(sentence)
+    const traffic = projectTeamTraffic(rig.service, 2)
+    const row = traffic.mergeQueue.find((candidate) => candidate.taskId === task)
+    expect(row?.reason).toBe(sentence)
+    expect(row?.landingBranch).toBe(refusal.branch)
+    await rm(lock)
     // Real git, a real worker process and a real landing.
   }, 120_000)
 })

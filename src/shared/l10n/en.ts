@@ -1115,6 +1115,8 @@ export const EN = {
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
     'mcp-defer-tokens':
       'Defer MCP tool schemas past this many estimated definition tokens, loading them through tool search; 0 always loads every schema.',
+    'mcp-always-load':
+      'Keep this MCP server’s tools loaded while --mcp-defer-tokens defers the rest; repeat it for more servers.',
     'max-output-tokens':
       'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
     timeout:
@@ -4918,6 +4920,23 @@ export const EN = {
       'Changed during landing: {path}. Undo merge is available only while the landed bytes still match.',
     fileHeld:
       'A program is holding {path}, so the landing stopped and put back what it had written. Close the program and land again.',
+    changedDuringLandingNoUndo:
+      'Changed during landing: {path}. The landing stopped there, and what it had already written stays in your files. Review them with Git before you land anything else.',
+    landingStale:
+      'The workspace changed after this merge was checked, so nothing landed. Land it again to check it against your current files.',
+    landingDenied:
+      'This landing was not approved, so nothing landed. Land it again to be asked again.',
+    landingBusyOpen:
+      'An earlier landing is still open, so nothing landed. Recover it, then land this one again.',
+    landingBusyThen: 'Nothing landed: land it again after that.',
+    landingBranchedThen:
+      'Nothing landed in your files: the change is kept on branch {branch}, ready to merge after that.',
+    heldByLock:
+      'Git’s lock is held at {path}. If no Git command is running, remove that file yourself: Muse Spark Code never removes a lock it did not take.',
+    heldByLanding:
+      'Another landing holds Git’s lock at {path}. Wait for it to finish; if its window is gone, remove that file yourself and recover the landing.',
+    heldByOperation: 'A Git operation is in progress ({path}). Finish or abort it.',
+    heldByWindow: 'Another window is landing in this repository. Wait for it to finish.',
     checksFailed: 'Check {name} failed on the merged result, so nothing landed.',
     landingOpen: 'An earlier landing did not finish: {path}. Recover it before the next one.',
     landingUnsaved: 'Save or close {path} first: a landing would overwrite its unsaved changes.',
@@ -5931,6 +5950,7 @@ export const EN = {
   // values, as typed (`serve --help`).
   cliValueInvalid: 'Invalid value for {option}; run {help} for the accepted values and bounds.',
   execLimitInvalid: 'Invalid number or limit for {flag}.',
+  execServerNameEmpty: '{flag} needs the name of an MCP server.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',

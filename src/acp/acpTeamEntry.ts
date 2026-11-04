@@ -11,7 +11,7 @@
 // panel's Muse Code orchestrator does (RLF-TEAMWIRE).
 import { randomUUID } from 'node:crypto'
 import { Buffer } from 'node:buffer'
-import { open, readFile } from 'node:fs/promises'
+import { mkdir, open, readFile } from 'node:fs/promises'
 import { availableParallelism } from 'node:os'
 import path from 'node:path'
 import type {
@@ -25,7 +25,7 @@ import { isErrno } from '../core/fs/errno'
 import type { CoreLogger } from '../core/logging'
 import { isSameTeamModel } from '../core/team/sameModel'
 import type { TeamGit } from '../core/team/teamGit'
-import type { TeamCardItem, TeamHostSeams } from '../core/team/teamHostService'
+import type { TeamCardItem, TeamHostSeams, TeamMergeRefusal } from '../core/team/teamHostService'
 import { TeamHostBinding } from '../host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../host/team/teamEnginePorts'
 import { workspaceKey } from '../runtime/dataFolder'
@@ -52,8 +52,9 @@ import {
 import type { TeamTreeData, TeamWorker } from '../shared/teamView'
 import { Usd, type UsdAmount } from '../shared/usd'
 import type { AcpPaidUse } from './paid'
+import { teamBoardFile, type TeamBoardFile } from '../core/team/teamBoardFile'
+import { mergeRefusalSentence } from '../core/team/teamMergeRefusalWords'
 import { teamSessionAdmission } from './teamAdmission'
-import { teamBoardFile, type TeamBoardFile } from './teamBoardFile'
 import {
   formatTeamPermissionTitle,
   teamDiff,
@@ -155,6 +156,15 @@ function asTeamRefusal(error: unknown): unknown {
 // A path in a failure's message: a drive, a share, a home or a rooted folder.
 // A relative name (`src/a.ts`) is what the person's own sentences name.
 const ABSOLUTE_PATH = /(?:^|[\s'"`(=])(?:[A-Za-z]:[\\/]|\\\\|~[\\/]|file:|\/[^\s/'"`]+\/)/u
+
+/** A refused landing as an editor's session says it: it has no Undo Merge to offer. */
+export function refusedLandingText(refusal: TeamMergeRefusal): string {
+  return refusal.kind === 'changed'
+    ? fill(UI_TEXT.teamTrafficNotices.changedDuringLandingNoUndo, {
+        path: (refusal.paths ?? []).join(', '),
+      })
+    : mergeRefusalSentence(refusal)
+}
 
 /**
 A failed card in its own words (`teamTaskBusy`, a merge refusal), unless those
@@ -272,7 +282,11 @@ class WorkspaceTeam {
     private readonly locale: string,
     public readonly cwd: string,
   ) {
-    this.boardFile = teamBoardFile(teamFolder(deps, cwd))
+    this.boardFile = teamBoardFile(async () => {
+      const folder = teamFolder(deps, cwd)
+      await mkdir(folder, { recursive: true })
+      return path.join(folder, ACP_TEAM_BOARD_FILE)
+    })
     this.binding = new TeamHostBinding({
       ports: {
         state: {
@@ -634,6 +648,20 @@ class WorkspaceTeam {
     })
   }
 
+  /**
+  The person answered Merge and it did not land: the service's record of that landing,
+  in the words the card and Traffic use. It is read only after a merge was asked for, so
+  an older refusal is never said again. The model gets the refusal from its own tool.
+  */
+  private sayRefusedLanding(handler: AcpTeamSessionHandler, taskId: string): void {
+    const refusal = this.binding.loaded()?.mergeRefusal?.(taskId)
+    if (refusal === undefined) return
+    handler.sendUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: refusedLandingText(refusal) },
+    })
+  }
+
   /** The waiting card as the editor's permission request, its four choices by name. */
   private async askWaiting(
     sessionId: string,
@@ -741,6 +769,7 @@ class WorkspaceTeam {
         taskId: merge.taskId,
         decision: 'merge',
       })
+      this.sayRefusedLanding(handler, merge.taskId)
       return
     }
     const options: PermissionOption[] = [
@@ -787,6 +816,7 @@ class WorkspaceTeam {
     }
     if (isUnanswered) this.sayUnanswered(handler)
     await this.binding.handle({ type: 'decideTeamMerge', taskId: merge.taskId, decision })
+    if (decision === 'merge') this.sayRefusedLanding(handler, merge.taskId)
   }
   /** Another run's open landing: rolled back only on the person's own answer. */
   private async askRecover(record: { readonly files: readonly { path: string }[] }) {

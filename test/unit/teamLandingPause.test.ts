@@ -128,7 +128,16 @@ describe.each(LANDING_SPELLINGS)('checked landing (real git, %s)', (spelling) =>
       status: 'rework',
       written: [],
       conflicts: [],
-      refusal: { kind: 'busy', action: 'recheck' },
+      refusal: {
+        kind: 'busy',
+        action: 'recheck',
+        // What holds the repository: the paused landing's own lock, with its record.
+        holder: {
+          kind: 'lock',
+          path: expect.stringContaining('index.lock') as string,
+          owner: expect.objectContaining({ landingId: expect.any(String) as string }) as object,
+        },
+      },
     })
     expect(await hasFile(path.join(root, 'other.txt'))).toBe(false)
     expect(await readFile(target, 'utf8')).toBe('before\n')

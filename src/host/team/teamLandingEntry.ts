@@ -471,7 +471,15 @@ export async function landTeamTask(
         break
       }
       case 'busy': {
-        refusal = { kind: 'busy', action: 'recheck' }
+        // The landing's answer does not say why. What holds the repository now does.
+        const holder = await knownRepositoryHolder(
+          root,
+          gitDirectory,
+          owner.instanceId,
+          await policy.hints(),
+          deps.platform,
+        )
+        refusal = { kind: 'busy', action: 'recheck', ...(holder !== undefined && { holder }) }
         break
       }
       case 'denied': {

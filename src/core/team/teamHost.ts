@@ -104,6 +104,7 @@ import { randomUUID } from 'node:crypto'
 import { orderMergeQueue, type MergeCandidate } from './mergeQueue'
 import { isProtectedPath } from '../protectedPaths'
 import type * as teamMergeFlow from './teamMergeFlow'
+import { mergeRefusalForLog } from './teamMergeRefusalWords'
 
 import { TEAM_TASKS_STATE_KEY, storedTasksSchema, type TaskPhase } from './teamTaskState'
 const REVIEW_ROLE = 'code-review'
@@ -2501,7 +2502,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         refusal,
         noteMergeRefusal: (taskId, value) => {
           if (value === undefined) mergeRefusals.delete(taskId)
-          else mergeRefusals.set(taskId, value)
+          else {
+            mergeRefusals.set(taskId, value)
+            deps.log.info(`Team landing refused: ${mergeRefusalForLog(value)}`)
+          }
           changed()
         },
         noteCardOpen: (taskId) => {
