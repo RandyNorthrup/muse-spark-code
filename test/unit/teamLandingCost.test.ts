@@ -139,7 +139,8 @@ describe('what a landing costs in git processes', () => {
       expect(outcome.refusal?.kind).toBe('changed')
       if (outcome.refusal?.kind !== 'changed') throw new Error('no changed refusal')
       const before = calls.length
-      expect(await merges.undo?.(fixture.taskId, outcome.refusal.landingId, signal)).toMatchObject({
+      const landingId = outcome.refusal.landingId ?? ''
+      expect(await merges.undo?.(fixture.taskId, landingId, signal)).toMatchObject({
         status: 'undone',
       })
       const others = files.slice(0, -1)
@@ -287,29 +288,33 @@ describe('a file changed between two guards of one landing', () => {
 describe('a worker ref that moves during a landing', () => {
   const BATCH = ['a.txt', 'b.txt', 'c.txt']
 
-  it('stops it before the first write when it moved first', async () => {
-    const fixture = await fixtureFor('task-ref-early', BATCH)
-    // The check before anything is written, on the first file: the lock is not taken yet.
-    const { ports } = atGuard('a.txt', 1, () => moveRef(fixture))
+  /** Refused in words, every file as it was, and the lock gone. */
+  const expectPutBack = async (
+    fixture: LandingFixture,
+    ports: EngineLandingPorts,
+    statuses: readonly string[],
+  ) => {
     await expect(land(fixture, ports)).rejects.toThrow(
       UI_TEXT.teamTrafficDetails.changedSinceOpened,
     )
     for (const file of BATCH) expect(await bytes(fixture, file)).toBe('before\n')
-    // Nothing was opened to recover: no record, and the lock is gone.
-    expect(await landingStatuses(fixture.storage)).toEqual([])
+    expect(await landingStatuses(fixture.storage)).toEqual(statuses)
     expect(await isLocked(fixture)).toBe(false)
+  }
+
+  it('stops it before the first write when it moved first', async () => {
+    const fixture = await fixtureFor('task-ref-early', BATCH)
+    // The check before anything is written, on the first file: the lock is not taken yet.
+    const { ports } = atGuard('a.txt', 1, () => moveRef(fixture))
+    // Nothing was opened to recover: no record.
+    await expectPutBack(fixture, ports, [])
   }, 120_000)
 
   it('puts back what went in when it moved in the middle of the batch', async () => {
     const fixture = await fixtureFor('task-ref-late', BATCH)
     // The second file's first guard under the lock: one file is already in.
     const { ports } = atGuard('b.txt', 2, () => moveRef(fixture))
-    await expect(land(fixture, ports)).rejects.toThrow(
-      UI_TEXT.teamTrafficDetails.changedSinceOpened,
-    )
-    for (const file of BATCH) expect(await bytes(fixture, file)).toBe('before\n')
-    expect(await landingStatuses(fixture.storage)).toEqual(['recovered'])
-    expect(await isLocked(fixture)).toBe(false)
+    await expectPutBack(fixture, ports, ['recovered'])
   }, 120_000)
 })
 

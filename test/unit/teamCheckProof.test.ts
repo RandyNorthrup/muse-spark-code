@@ -23,6 +23,7 @@ import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
 import {
   HOOK_CONFIG_MAX_BYTES,
+  TEAM_CHECK_HOST_BUSY,
   TEAM_PROCESS_MODEL_TEXT,
   UI_TEXT,
   type CheckCommandSetting,
@@ -527,6 +528,42 @@ function stall(ms: number): void {
   }
 }
 
+/** One folder's real slots, with a job pointed at the repository itself. */
+async function slotsOverARepository(prefix: string, isHostBusy: boolean, timeoutMs: number) {
+  const root = await scratch(prefix)
+  const repo = path.join(root, 'repo')
+  await mkdir(repo)
+  const slots = new CheckSlots({
+    file: 'git',
+    run: checkProcessProvedByExit(),
+    env: fixtureGitEnvironment(process.env),
+    root: path.join(root, 'slots'),
+    repositoryRoot: repo,
+    platform: process.platform,
+    count: 1,
+    setupCommand: '',
+    cacheKey: 'guard',
+    installPaths: [],
+    shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
+    shellArgs: (command) => [process.platform === 'win32' ? '/c' : '-c', command],
+    isTrusted: () => true,
+    isHostBusy: () => isHostBusy,
+  })
+  const job = {
+    runId: 'guard',
+    cwd: repo,
+    command: 'true',
+    timeoutMs,
+    commandClass: 'declared' as const,
+    labels: [],
+    preferredRunners: [],
+    lockfiles: [],
+    signal: new AbortController().signal,
+    onOutput: () => undefined,
+  }
+  return { slots, job }
+}
+
 const NODE_EXITS_0 = { file: process.execPath, args: ['-e', 'process.exit(0)'], env: process.env }
 
 describe('a check on a machine under load', () => {
@@ -557,7 +594,7 @@ describe('a check on a machine under load', () => {
       const lifetime = await realLifetime(root, () => true)
       await expect(
         checkProcessOver(lifetime)({ ...NODE_EXITS_0, cwd: root, timeoutMs: 50 }),
-      ).rejects.toThrow(TEAM_PROCESS_MODEL_TEXT.hostCheckBusy)
+      ).rejects.toThrow(TEAM_CHECK_HOST_BUSY)
     },
     LONG_MS,
   )
@@ -598,39 +635,8 @@ describe('a check on a machine under load', () => {
   it(
     'slots wait for the host too, and say why rather than that they are full',
     async () => {
-      const root = await scratch('muse-load-slots-')
-      const repo = path.join(root, 'repo')
-      await mkdir(repo)
-      const slots = new CheckSlots({
-        file: 'git',
-        run: checkProcessProvedByExit(),
-        env: fixtureGitEnvironment(process.env),
-        root: path.join(root, 'slots'),
-        repositoryRoot: repo,
-        platform: process.platform,
-        count: 1,
-        setupCommand: '',
-        cacheKey: 'busy',
-        installPaths: [],
-        shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
-        shellArgs: (command) => [process.platform === 'win32' ? '/c' : '-c', command],
-        isTrusted: () => true,
-        isHostBusy: () => true,
-      })
-      await expect(
-        slots.run({
-          runId: 'busy',
-          cwd: repo,
-          command: 'true',
-          timeoutMs: 50,
-          commandClass: 'declared',
-          labels: [],
-          preferredRunners: [],
-          lockfiles: [],
-          signal: new AbortController().signal,
-          onOutput: () => undefined,
-        }),
-      ).rejects.toThrow(TEAM_PROCESS_MODEL_TEXT.hostCheckBusy)
+      const { slots, job } = await slotsOverARepository('muse-load-slots-', true, 50)
+      await expect(slots.run(job)).rejects.toThrow(TEAM_CHECK_HOST_BUSY)
     },
     LONG_MS,
   )
@@ -707,37 +713,7 @@ describe("the slots' refusals", () => {
   it(
     'do not say an attempt has not stopped when a check is pointed at the repository itself',
     async () => {
-      const root = await scratch('muse-proof-guard-')
-      const repo = path.join(root, 'repo')
-      await mkdir(repo)
-      const slots = new CheckSlots({
-        file: 'git',
-        run: checkProcessProvedByExit(),
-        env: fixtureGitEnvironment(process.env),
-        root: path.join(root, 'slots'),
-        repositoryRoot: repo,
-        platform: process.platform,
-        count: 1,
-        setupCommand: '',
-        cacheKey: 'guard',
-        installPaths: [],
-        shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
-        shellArgs: (command) => [process.platform === 'win32' ? '/c' : '-c', command],
-        isTrusted: () => true,
-        isHostBusy: () => false,
-      })
-      const job = {
-        runId: 'guard',
-        cwd: repo,
-        command: 'true',
-        timeoutMs: 30_000,
-        commandClass: 'declared' as const,
-        labels: [],
-        preferredRunners: [],
-        lockfiles: [],
-        signal: new AbortController().signal,
-        onOutput: () => undefined,
-      }
+      const { slots, job } = await slotsOverARepository('muse-proof-guard-', false, 30_000)
       await expect(slots.run(job)).rejects.toThrow(UI_TEXT.teamRunners.testFailed)
       expect(slots.states()[0]).toMatchObject({ busy: false, uncertain: false })
     },
