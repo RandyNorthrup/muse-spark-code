@@ -10,7 +10,8 @@
 // Muse Code orchestrator takes its `team` MCP endpoint, exactly as the
 // panel's Muse Code orchestrator does (RLF-TEAMWIRE).
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { Buffer } from 'node:buffer'
+import { open, readFile } from 'node:fs/promises'
 import { availableParallelism } from 'node:os'
 import path from 'node:path'
 import type {
@@ -34,7 +35,6 @@ import {
   ACP_SESSIONS_SUBFOLDER,
   ACP_TEAM_BOARD_FILE,
   ACP_TEAM_STORAGE_FOLDER,
-  EXEC_TEAM_FILE_MODE,
   TEAM_MCP_SERVER_NAME,
   UI_TEXT,
   type AcpBackendKind,
@@ -52,6 +52,7 @@ import type { TeamTreeData, TeamWorker } from '../shared/teamView'
 import { Usd, type UsdAmount } from '../shared/usd'
 import type { AcpPaidUse } from './paid'
 import { teamSessionAdmission } from './teamAdmission'
+import { teamBoardFile, type TeamBoardFile } from './teamBoardFile'
 import {
   formatTeamPermissionTitle,
   teamDiff,
@@ -109,7 +110,7 @@ function teamRefusal(message: string): Error {
   return new TeamRefusalError(message)
 }
 
-/** The stored-team sentences a prepare may refuse with, templates by their heads. */
+/** The stored-team sentences a prepare may refuse with. */
 const REFUSAL_TEMPLATES = [
   'teamNeedsSecondModel',
   'teamSwitchedOff',
@@ -123,16 +124,46 @@ const REFUSAL_TEMPLATES = [
   'teamRunnerUnavailable',
 ] as const
 
+/**
+Whether the message is this template with its slots filled: every fixed word in
+order, from the first character to the last. A head alone would not do: a template
+that opens with its slot, as `teamRunnerUnavailable` does in English, has an empty
+head, and every error starts with that.
+*/
+function isFilledTemplate(message: string, template: string): boolean {
+  const [head = '', ...rest] = template.split(/\{\w+\}/u)
+  if (rest.length === 0) return message === template
+  if (!message.startsWith(head)) return false
+  let from = head.length
+  for (const word of rest) {
+    const found = message.indexOf(word, from)
+    if (found === -1) return false
+    from = found + word.length
+  }
+  return message.endsWith(rest.at(-1) ?? '')
+}
+
 /** Brands a known stored-team sentence as a refusal; anything else keeps its kind. */
 function asTeamRefusal(error: unknown): unknown {
   if (!(error instanceof Error)) return error
-  const isKnown = REFUSAL_TEMPLATES.some((key) => {
-    const template = UI_TEXT[key]
-    return (
-      error.message === template || error.message.startsWith(template.split('{', 1)[0] ?? template)
-    )
-  })
-  return isKnown ? teamRefusal(error.message) : error
+  return REFUSAL_TEMPLATES.some((key) => isFilledTemplate(error.message, UI_TEXT[key]))
+    ? teamRefusal(error.message)
+    : error
+}
+
+// A path in a failure's message: a drive, a share, a home or a rooted folder.
+// A relative name (`src/a.ts`) is what the person's own sentences name.
+const ABSOLUTE_PATH = /(?:^|[\s'"`(=])(?:[A-Za-z]:[\\/]|\\\\|~[\\/]|file:|\/[^\s/'"`]+\/)/u
+
+/**
+A failed card in its own words (`teamTaskBusy`, a merge refusal), unless those
+words are a machine's: a bare code (`unknownTask`) or a place on this machine.
+The log has the failure either way.
+*/
+export function cardFailureText(error: unknown): string {
+  return error instanceof Error && /\s/u.test(error.message) && !ABSOLUTE_PATH.test(error.message)
+    ? error.message
+    : UI_TEXT.actionFailed
 }
 
 const WAITING_SEGMENT = 'waiting/'
@@ -150,12 +181,23 @@ function dailyBudget(deps: AcpTeamDeps): UsdAmount | undefined {
   return cap > 0 ? Usd.from(cap).toAmount() : undefined
 }
 
-/** The default stored-file reader: the filesystem's, bounded by the caller's slice. */
+/** The default stored-file reader: the filesystem's, reading no further than the caller's bound. */
 async function fileBytes(file: string, maxBytes: number, signal: AbortSignal): Promise<Uint8Array> {
   signal.throwIfAborted()
-  const bytes = await readFile(file)
-  signal.throwIfAborted()
-  return bytes.subarray(0, maxBytes)
+  const handle = await open(file, 'r')
+  try {
+    const bytes = Buffer.alloc(maxBytes)
+    let filled = 0
+    while (filled < maxBytes) {
+      const { bytesRead } = await handle.read(bytes, filled, maxBytes - filled, filled)
+      if (bytesRead === 0) break
+      filled += bytesRead
+    }
+    signal.throwIfAborted()
+    return bytes.subarray(0, filled)
+  } finally {
+    await handle.close()
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -210,7 +252,7 @@ class WorkspaceTeam {
   private loweredBudget: UsdAmount | undefined
   private requiredReviews: ReadonlySet<string> = new Set()
   private loading: Promise<void> | undefined
-  private writes: Promise<void> = Promise.resolve()
+  private readonly boardFile: TeamBoardFile
   private readonly handlers = new Map<string, AcpTeamSessionHandler>()
   private readonly announced = new Map<string, Map<string, AnnouncedTask>>()
   private readonly plans = new Map<string, string>()
@@ -228,6 +270,7 @@ class WorkspaceTeam {
     private readonly locale: string,
     public readonly cwd: string,
   ) {
+    this.boardFile = teamBoardFile(teamFolder(deps, cwd))
     this.binding = new TeamHostBinding({
       ports: {
         state: {
@@ -337,18 +380,7 @@ class WorkspaceTeam {
     const board: Record<string, unknown> = {}
     for (const [name, entry] of this.board)
       if (name !== TEAM_WORKSPACE_KEYS.team) board[name] = entry
-    const text = JSON.stringify(board)
-    const folder = teamFolder(this.deps, this.cwd)
-    const previous = this.writes
-    this.writes = (async () => {
-      await previous
-      await mkdir(folder, { recursive: true })
-      const target = path.join(folder, ACP_TEAM_BOARD_FILE)
-      const temporary = `${target}.new`
-      await writeFile(temporary, text, { mode: EXEC_TEAM_FILE_MODE })
-      await rename(temporary, target)
-    })()
-    return this.writes
+    return this.boardFile.write(JSON.stringify(board))
   }
 
   /** The admission's candidates: the stored entries this surface can dispatch. */
@@ -570,10 +602,7 @@ class WorkspaceTeam {
         this.deps.log.warn(`ACP team card failed: ${failureForLog(error)}`)
         handler.sendUpdate({
           sessionUpdate: 'agent_message_chunk',
-          content: {
-            type: 'text',
-            text: error instanceof Error ? error.message : UI_TEXT.actionFailed,
-          },
+          content: { type: 'text', text: cardFailureText(error) },
         })
       }
     })()
@@ -874,8 +903,9 @@ class WorkspaceTeam {
     this.announced.clear()
     this.plans.clear()
     for (const sessionId of sessions) await this.binding.loaded()?.stopSessionTasks?.(sessionId)
-    await this.binding.dispose()
-    await this.writes
+    // Headless runs wait the same way: nothing of a worker outlives the team.
+    await this.binding.dispose({ waitForWorkers: true })
+    await this.boardFile.settled()
   }
 }
 
