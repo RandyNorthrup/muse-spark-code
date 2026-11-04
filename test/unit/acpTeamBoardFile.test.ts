@@ -4,18 +4,15 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { teamBoardFile } from '../../src/acp/teamBoardFile'
 import { ACP_TEAM_BOARD_FILE } from '../../src/shared/constants'
 
-const folders: string[] = []
-afterEach(() => {
-  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
-})
-
 function scratch(): string {
   const folder = mkdtempSync(path.join(tmpdir(), 'acp-board-'))
-  folders.push(folder)
+  onTestFinished(() => {
+    rmSync(folder, { recursive: true, force: true })
+  })
   return folder
 }
 

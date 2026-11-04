@@ -2,6 +2,7 @@
 // publishes one item per session; each bridge maps it to its tool window,
 // and the companion page renders it in its status strip. Counts only —
 // question text never enters a status frame.
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { Logger } from '../../host/logger'
 import { logRejection } from '../../host/logger'
 import type { MhpParams, MhpResult } from '../../shared/hostApi/methods'
@@ -55,7 +56,7 @@ export function createQuestionsStatusPublisher(
         isFailureSaid = false
       })
       .catch((error: unknown) => {
-        logFailure(error)
+        log.error(`questions status failed: ${failureForLog(error)}`)
         // What the editor shows is now stale: the next update publishes again
         // even at this count, and the person hears it once, not per update.
         if (lastBySession.get(sessionId) === count) lastBySession.delete(sessionId)

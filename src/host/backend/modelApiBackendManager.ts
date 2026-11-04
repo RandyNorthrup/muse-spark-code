@@ -237,10 +237,10 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** `museSpark.modelApiMcpDeferTokens`, read once per user turn (4-H4). */
   readonly mcpDeferThresholdTokens?: (() => number | undefined) | undefined
-  /** `museSpark.modelApiMcpAlwaysLoad`, read once per user turn. */
-  readonly mcpAlwaysLoadServers?: (() => readonly string[]) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
   readonly isShellKeepsDirectoryOn?: (() => boolean) | undefined
+  /** `museSpark.modelApiMcpAlwaysLoad`, read once per user turn. */
+  readonly mcpAlwaysLoadServers?: (() => readonly string[]) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
   readonly memory: MemoryStore | undefined
   /** The command rules and permission profiles (M78, PLAN.md D49), read at each call. */
