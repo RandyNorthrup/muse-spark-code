@@ -293,14 +293,27 @@ describe('M111 ED editor group over real CodeMirror (D91.14)', () => {
       expect(document.querySelector('.cm-content')?.textContent).toContain('one')
     })
     expect(screen.getByRole('tab', { name: 'one.txt' })).toHaveAttribute('aria-selected', 'true')
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: fill(UI_TEXT.editorGroup.closeTab, { title: 'two.txt' }),
-      }),
-    )
+    fireEvent.click(screen.getByTitle(fill(UI_TEXT.editorGroup.closeTab, { title: 'two.txt' })))
     await waitFor(() => {
       expect(screen.queryByRole('tab', { name: 'two.txt' })).toBeNull()
     })
+  })
+
+  it('closes the focused tab with Delete and gives the focus to the tab that follows', async () => {
+    let state = emptyEditorGroupState()
+    state = openFileTab(state, 'one.txt', { ephemeral: false })
+    state = openFileTab(state, 'two.txt', { ephemeral: false })
+    mountGroup(state, { 'one.txt': buffer('one\n'), 'two.txt': buffer('two\n') })
+    const two = await screen.findByRole('tab', { name: 'two.txt' })
+    expect(two).toHaveAttribute('aria-keyshortcuts', 'Delete')
+    // No control inside a tab: one interactive control nested in another (run 41738951665).
+    expect(two.querySelector('button')).toBeNull()
+    two.focus()
+    fireEvent.keyDown(two, { key: 'Delete' })
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'two.txt' })).toBeNull()
+    })
+    expect(screen.getByRole('tab', { name: 'one.txt' })).toHaveFocus()
   })
 
   it('reports a language that cannot load and stays editable as plain text', async () => {

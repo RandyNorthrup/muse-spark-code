@@ -7,6 +7,12 @@
   height: 320px;
 }
 
+/* xterm's screen reader mirror sits over the painted rows in transparent text. Nothing of it is
+   seen, and saying so here keeps it out of contrast checks; a screen reader still reads it. */
+.node-terminal-view .xterm-accessibility {
+  opacity: 0%;
+}
+
 .node-terminal-hidden {
   visibility: hidden;
 }

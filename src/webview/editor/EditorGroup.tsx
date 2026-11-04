@@ -207,6 +207,19 @@ export function EditorGroup(props: EditorGroupProps) {
     tabElements.current.get(`${paneId}:${tabId}`)?.focus()
   }
 
+  /** Delete on a tab: the tab that follows takes the focus, which would otherwise be lost with it. */
+  const closeFocusedTab = (pane: EditorPane, tab: EditorTab): void => {
+    if (!props.canClose(tab)) {
+      props.onCloseRefused(tab)
+      return
+    }
+    const next = closeTab(state, tab.id)
+    change(next)
+    const nextPane = next.panes.find((candidate) => candidate.id === pane.id)
+    const following = nextPane === undefined ? undefined : activeTabOf(nextPane)
+    if (following !== undefined) focusTab(pane.id, following.id)
+  }
+
   const onTabListKeyDown = (event: ReactKeyboardEvent, pane: EditorPane): void => {
     const active = activeTabOf(pane)
     if (active === undefined) return
@@ -228,6 +241,11 @@ export function EditorGroup(props: EditorGroupProps) {
       case 'last': {
         nextIndex = pane.tabs.length - 1
         break
+      }
+      case 'closeTab': {
+        event.preventDefault()
+        if (!active.pinned) closeFocusedTab(pane, active)
+        return
       }
       default: {
         break
@@ -282,6 +300,7 @@ export function EditorGroup(props: EditorGroupProps) {
         }}
         aria-selected={isSelected}
         aria-label={tabLabel(tab, hasUnsavedChanges)}
+        aria-keyshortcuts={tab.pinned ? undefined : 'Delete'}
         title={tabFilePath(tab) ?? tab.title}
         tabIndex={isSelected ? 0 : -1}
         draggable
@@ -327,18 +346,19 @@ export function EditorGroup(props: EditorGroupProps) {
           <span className="ms-editor-tab-dirty" aria-hidden="true" />
         )}
         {!tab.pinned && !hasUnsavedChanges && (
-          <button
-            type="button"
+          // For the pointer: a control inside a tab is one interactive control nested in another,
+          // which a screen reader cannot tell apart. The tab says its own key, Delete.
+          <span
             className="ms-editor-tab-close"
-            aria-label={fill(text.closeTab, { title: tab.title })}
-            tabIndex={-1}
+            aria-hidden="true"
+            title={fill(text.closeTab, { title: tab.title })}
             onClick={(event) => {
               event.stopPropagation()
               requestClose(tab)
             }}
           >
             <Icon path={ICONS.close} />
-          </button>
+          </span>
         )}
       </div>
     )

@@ -1028,7 +1028,7 @@
   "referenceSendKeys": "Odeslat zadání gestem podle useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "Zvětšit nebo zmenšit výšku panelu.",
   "referenceDesktopTerminalSearchKeys": "Procházet výskyty hledání v terminálu nebo zavřít panel hledání.",
   "referenceDesktopProblemsKeys": "Procházet problémy a otevřít vybraný.",
