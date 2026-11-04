@@ -203,6 +203,68 @@ describe.each(LANDING_SPELLINGS)(
   },
 )
 
+describe("the product's landing, before it writes", () => {
+  const fixtureFor = landingFixturesIn('asCreated')
+  const signal = new AbortController().signal
+
+  it('a landing settles what it can first, then lands', async () => {
+    const fixture = await deadWindowAndNoLock(fixtureFor, 'task-first')
+    const { merges } = productLandingPorts(fixture, {
+      confirmTakeover: () => Promise.resolve(true),
+    })
+    expect(
+      await merges.merge(await productTask(fixture), signal, { allowProtected: false }),
+    ).toMatchObject({ status: 'merged' })
+    for (const file of BATCH) expect(await readIn(fixture.root, file)).toBe('after\n')
+    expect(await landingStatuses(fixture.storage)).toEqual(
+      expect.arrayContaining(['recovered', 'landed']),
+    )
+  }, 180_000)
+
+  it("the person's unsaved file stops a landing whole, before anything is written", async () => {
+    const fixture = await fixtureFor('task-unsaved', BATCH)
+    const words = 'Save c.txt first.'
+    const { merges } = productLandingPorts(fixture, {
+      validateTarget: (target) =>
+        path.basename(target) === 'c.txt' ? Promise.reject(new Error(words)) : Promise.resolve(),
+    })
+    await expect(
+      merges.merge(await productTask(fixture), signal, { allowProtected: false }),
+    ).rejects.toThrow(words)
+    for (const file of BATCH) expect(await readIn(fixture.root, file)).toBe('before\n')
+    expect(await landingStatuses(fixture.storage)).toEqual([])
+    expect(await hasFile(path.join(fixture.root, '.git', 'index.lock'))).toBe(false)
+  }, 120_000)
+
+  it('a check that fails on the merged result lands nothing, and says which', async () => {
+    const fixture = await fixtureFor('task-checks', BATCH)
+    const ran: string[] = []
+    const { merges } = productLandingPorts(fixture, {
+      checks: () => ({
+        commands: [{ name: 'lint', command: 'lint', timeoutSeconds: 60 }],
+        platform: process.platform,
+        setupCommand: '',
+        cacheKey: '',
+      }),
+      // The copy it is handed holds the merged result, and the person's tree does not.
+      runChecks: async (folder) => {
+        ran.push(await readFile(path.join(folder, 'a.txt'), 'utf8'))
+        return { passed: false, failed: 'lint' }
+      },
+    })
+    expect(
+      await merges.merge(await productTask(fixture), signal, { allowProtected: false }),
+    ).toMatchObject({
+      status: 'rework',
+      written: [],
+      refusal: { kind: 'checks', check: 'lint' },
+    })
+    expect(ran).toEqual(['after\n'])
+    for (const file of BATCH) expect(await readIn(fixture.root, file)).toBe('before\n')
+    expect(await landingStatuses(fixture.storage)).toEqual([])
+  }, 120_000)
+})
+
 describe("a file changed in the middle of the product's landing", () => {
   const fixtureFor = landingFixturesIn('asCreated')
   const signal = new AbortController().signal
