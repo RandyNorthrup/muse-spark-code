@@ -11,6 +11,7 @@ import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { isolateMakerValidation } from '../../scripts/lib/makerValidation.mjs'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { MakerApproval } from '../../src/core/maker/ports.ts'
+import { buildWebviewHtml } from '../../src/host/html.ts'
 
 // Select the fixture engine, never a subset of tests. The rig may supply a
 // cached WebKit client matching its native runtime without changing pins.
@@ -93,7 +94,21 @@ const rig = {
   table: undefined,
   hostFrames: [],
   hostApprovals: [],
+  moduleHold: undefined,
 }
+
+/** The static Stop exactly as the host's document paints it. */
+const staticStop = (table) =>
+  /<div id="maker-stop-shell".*?<\/div>/u.exec(
+    buildWebviewHtml({
+      scriptUri: '',
+      styleUri: '',
+      cspSource: '',
+      nonce: '',
+      hasMakerStop: true,
+      l10n: { locale: 'en', table },
+    }),
+  )[0]
 
 beforeAll(async () => {
   const { EN } = await loadL10n(process.cwd())
@@ -173,7 +188,7 @@ beforeAll(async () => {
         rig.table === undefined
           ? ''
           : `<script id="muse-l10n" type="application/json">${JSON.stringify(rig.table)}</script>`
-      const html = `<html><head><style nonce="simulator">${isPreview ? '' : css}</style>${isPreview ? '<link rel="stylesheet" href="/temp/browser-preview/stdin.css">' : '<link rel="stylesheet" href="/temp/browser-main/stdin.css">'}</head><body data-artifact-id="${ID}" style="--vscode-font-family:Arial;--vscode-font-size:13px">${embedded}${isPreview ? '' : `<div id="maker-stop-shell" class="maker-static-stop"><button type="button">${rig.table?.table?.makerStopAll ?? rig.english.makerStopAll}</button></div>`}<main id="root"><button>Chat</button></main>${isPreview ? `<canvas id="maker-canvas"></canvas><p id="maker-preview-unavailable" hidden>Unavailable</p><button data-maker-stop="">Stop all machines</button>${stopHtml}` : ''}<script type="module" nonce="simulator" src="/temp/browser-${isPreview ? 'preview' : 'main'}/stdin.js"></script></body></html>`
+      const html = `<html><head><style nonce="simulator">${isPreview ? '' : css}</style>${isPreview ? '<link rel="stylesheet" href="/temp/browser-preview/stdin.css">' : '<link rel="stylesheet" href="/temp/browser-main/stdin.css">'}</head><body data-artifact-id="${ID}" style="--vscode-font-family:Arial;--vscode-font-size:13px">${embedded}${isPreview ? '' : staticStop(rig.table?.table ?? rig.english)}<main id="root"><button>Chat</button></main>${isPreview ? `<canvas id="maker-canvas"></canvas><p id="maker-preview-unavailable" hidden>Unavailable</p><button data-maker-stop="">Stop all machines</button>${stopHtml}` : ''}<script type="module" nonce="simulator" src="/temp/browser-${isPreview ? 'preview' : 'main'}/stdin.js"></script></body></html>`
       response
         .writeHead(200, {
           'Content-Type': 'text/html; charset=utf-8',
@@ -187,12 +202,16 @@ beforeAll(async () => {
       return
     }
     const contents = files.get(pathname)
-    response
-      .writeHead(contents === undefined ? 404 : 200, {
-        'Content-Type': pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
-        'Cache-Control': 'no-store',
-      })
-      .end(contents)
+    const serve = () =>
+      response
+        .writeHead(contents === undefined ? 404 : 200, {
+          'Content-Type': pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
+          'Cache-Control': 'no-store',
+        })
+        .end(contents)
+    if (pathname === '/temp/browser-main/stdin.js' && rig.moduleHold !== undefined)
+      void rig.moduleHold.then(serve)
+    else serve()
   })
   await new Promise((resolve) => rig.server.listen(0, '127.0.0.1', resolve))
   rig.port = rig.server.address().port
@@ -222,6 +241,7 @@ afterEach(async () => {
   rig.failed = undefined
   rig.hostHold?.release.resolve(true)
   rig.hostHold = undefined
+  rig.moduleHold = undefined
   rig.table = undefined
   rig.hostFrames = []
   rig.hostApprovals = []
@@ -557,6 +577,28 @@ it(`${ENGINE}: an invalid deferred maker key refuses the installed table and use
   await emit(p, requestFor('G1 X1\r'))
   await p.getByRole('dialog', { name: 'Approve hardware action' }).waitFor()
   expect(await p.getByText(rig.english.makerCanonicalLegend).count()).toBe(1)
+})
+
+// The bundle is what wires the Stop, and on a slow machine it comes long after first paint. Between
+// the two the Stop must read as what it is. The module is held here, so "before it is live" is a fact
+// and not a race; nothing in this case waits on a clock.
+it(`${ENGINE}: the static Stop is disabled until its handler is live, then answers`, async () => {
+  const held = Promise.withResolvers()
+  rig.moduleHold = held.promise
+  rig.page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
+  rig.page.setDefaultTimeout(3000)
+  // A real `load` waits for the module this case is holding back.
+  await rig.page.goto(`http://127.0.0.1:${rig.port}/`, { waitUntil: 'commit' })
+  const stop = rig.page.locator('#maker-stop-shell button')
+  await stop.waitFor()
+  expect(await stop.isDisabled()).toBe(true)
+  await stop.click({ force: true })
+  expect(await rig.page.evaluate(() => globalThis.sent)).toBeUndefined()
+  held.resolve(true)
+  await rig.page.waitForFunction(() => globalThis.emit !== undefined)
+  expect(await stop.isDisabled()).toBe(false)
+  await stop.click()
+  expect(await rig.page.evaluate(() => globalThis.sent.at(-1))).toEqual({ v: 1, type: 'makerStop' })
 })
 
 it(`${ENGINE}: storage-denied reload retains static Stop before delayed replay`, async () => {

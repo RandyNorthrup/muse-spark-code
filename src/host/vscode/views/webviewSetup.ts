@@ -159,6 +159,7 @@ export function configureWebview(
       nonce: createNonce(),
       l10n: context.l10n,
       documentId,
+      hasMakerStop: true,
     })
     return documentId
   }

@@ -29,6 +29,12 @@ export interface WebviewHtmlOptions {
   readonly surface?: 'tasks' | 'devices'
   /** A chat document's host-issued id (M107), from `createNonce`: base64url, attribute-safe. */
   readonly documentId?: string
+  /**
+  Paints the static hardware Stop. Only the chat document says so: it is the
+  one document whose bundle wires that Stop (`listenForMaker`). Any other page
+  would show a Stop nothing could ever answer.
+  */
+  readonly hasMakerStop?: boolean
 }
 
 // What must not appear raw inside a script element: `<` could close it
@@ -76,10 +82,13 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     HTML_UNSAFE,
     (character) => HTML_ESCAPES[character] ?? character,
   )
+  // Painted disabled: it has no handler until the bundle's `listenForMaker`
+  // enables it, and a Stop that looks live and does nothing is the one a
+  // person must never meet on a hardware page.
   const stopShell =
-    options.surface === 'tasks'
-      ? ''
-      : `<div id="${MAKER_STOP_SHELL_ID}" class="maker-static-stop"><button type="button">${stopLabel}</button></div>`
+    options.hasMakerStop === true
+      ? `<div id="${MAKER_STOP_SHELL_ID}" class="maker-static-stop"><button type="button" disabled>${stopLabel}</button></div>`
+      : ''
   const documentAttribute =
     options.documentId === undefined ? '' : ` ${WEBVIEW_DOCUMENT_ATTRIBUTE}="${options.documentId}"`
 
