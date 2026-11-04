@@ -75,7 +75,7 @@ const requestFor = (payload) => {
 const fixture = (isPreview = false) => `
 import { ${isPreview ? 'wireMakerPreview' : 'listenForMaker'} } from './${isPreview ? 'maker/previewPage' : 'makerEntry'}';
 ${isPreview ? "import './maker/preview.css';" : ''}
-const host = { post(message) { window.sent.push(message); if (message.type === 'makerReady') fetch('/maker-ready').then(response => response.json()).then(frames => frames.forEach(window.emit)); }, savedState() {}, saveState() {}, messages: window };
+const host = { post(message) { window.sent.push(message); if (message.type === 'makerReady') fetch('/maker-ready').then(response => response.json()).then(frames => { frames.forEach(window.emit); window.readyAnswered = true; }); }, savedState() {}, saveState() {}, messages: window };
 window.sent = []; window.metrics = {};
 window.emit = data => window.dispatchEvent(new MessageEvent('message', { data }));
 window.addEventListener('muse-panel-reload', () => globalThis.sessionStorage.setItem('chat-receipt', 'saved before reload'));
@@ -83,7 +83,7 @@ ${isPreview ? 'wireMakerPreview(globalThis.document, host);' : 'listenForMaker(h
 `
 const rig = {
   browser: undefined,
-  hostDelay: 0,
+  hostHold: undefined,
   server: undefined,
   page: undefined,
   port: 0,
@@ -156,8 +156,11 @@ beforeAll(async () => {
                 .filter((frame) => frame !== undefined),
             ]),
           )
-      if (rig.hostDelay > 0) setTimeout(reply, rig.hostDelay)
-      else reply()
+      if (rig.hostHold === undefined) reply()
+      else {
+        rig.hostHold.asked.resolve(true)
+        void rig.hostHold.release.promise.then(reply)
+      }
       return
     }
     if (pathname === '/' || pathname === '/preview') {
@@ -217,7 +220,8 @@ beforeAll(async () => {
 afterEach(async () => {
   await rig.page?.close()
   rig.failed = undefined
-  rig.hostDelay = 0
+  rig.hostHold?.release.resolve(true)
+  rig.hostHold = undefined
   rig.table = undefined
   rig.hostFrames = []
   rig.hostApprovals = []
@@ -563,12 +567,18 @@ it(`${ENGINE}: storage-denied reload retains static Stop before delayed replay`,
   await emit(p, state())
   await emit(p, frame)
   await p.getByRole('button', { name: 'Retry', exact: true }).waitFor()
+  // The first document's own ask is answered, so the next one the host sees is the reloaded
+  // document's, sent the moment it is listening. That ask is this case's clock. It used to read the
+  // page when `load` returned, and found no module run yet on three hosted runs (41516831678,
+  // 41578891657, 41761798108), with 1,000 ms before a reply it wanted not to have come.
+  await p.waitForFunction(() => globalThis.readyAnswered === true)
   rig.hostFrames = [state()]
   rig.hostApprovals = [new MakerApproval(frame.request, () => true)]
-  rig.hostDelay = 1000
+  const hold = { asked: Promise.withResolvers(), release: Promise.withResolvers() }
+  rig.hostHold = hold
   rig.failed = undefined
   await Promise.all([
-    p.waitForEvent('load'),
+    hold.asked.promise,
     p.getByRole('button', { name: 'Retry', exact: true }).click(),
   ])
   const facts = await p.evaluate(() => {
@@ -587,6 +597,7 @@ it(`${ENGINE}: storage-denied reload retains static Stop before delayed replay`,
     ready: true,
     sent: { v: 1, type: 'makerStop' },
   })
+  hold.release.resolve(true)
   await p.locator('.maker-digest').waitFor()
   expect(await p.locator('.maker-digest').textContent()).toBe(frame.request.digest)
   expect(await p.getByRole('button', { name: 'Send once', exact: true }).isDisabled()).toBe(true)
