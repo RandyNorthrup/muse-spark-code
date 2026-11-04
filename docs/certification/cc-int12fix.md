@@ -340,6 +340,12 @@ Together those mean a real median of 200 ms or more never passes.
 - **Not one slow machine:** three of five slowed badly, and shard 11 on the same image was faster than its last run. In shard 8 the slowness faded: from about 300 s of test time, files mostly read x0.6 to x1.3 (`nodeOsBrowser`, x2.2, is the exception).
 - **Why that image starts processes slowly, I cannot say from a log.** A scanner, or a disk warming on first read, would both look like this. No limit was raised, and nothing here is a fix for it.
 
+### Exit codes
+
+On `8a8e2350ee`, all 0: `format:check`, `lint:js:unit`, `typecheck:unit`, `duplication`, `check:plan`. `makerReviewBrowser`, `judgeP2Delivery` and `paidMoneyStructure` together on Windows: exit 0, 167 passed, that run printing real 27.4, 23.7, 22.3, 17.3, 17.1; controls 9.9, 6.5, 6.1, 6.1, 6.1; hook 7,435 ms. This record's later corrections took prettier on the file and `check:plan`, both 0.
+
+**Not proven:** hosted CI on any of this. What hosted macOS's controls read, which is what this round exists to find, and whether its hook fits 10 s with them. The 93 s for `judgeP2Delivery` on hosted Windows, which is a proportion. Why the new image starts processes slowly. The other four new-image shards were read from their cold starts and job times, not case by case.
+
 ## A correction to `cc-small3.md`
 
 That record said my drill runner "keeps everything now". It did not: the patch had failed silently, as I found starting this round. The two reds it
