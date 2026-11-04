@@ -317,11 +317,12 @@ describe('a headless run’s board', () => {
     await writeStoredTeam(data, fixture.root)
     const runs = await scratch('muse-landing-runs-')
     // The worker's start is held, so the writes its end brings come after the way is blocked.
-    const gates: ((reason: Error) => void)[] = []
-    const held: ExecTeamDeps['startWorker'] = () =>
-      new Promise<never>((_resolve, reject) => {
-        gates.push(reject)
-      })
+    const started = Promise.withResolvers<true>()
+    const refused = Promise.withResolvers<never>()
+    const held: ExecTeamDeps['startWorker'] = () => {
+      started.resolve(true)
+      return refused.promise
+    }
     const run = inTemporaryFolder(runs, () =>
       oneHeadlessRun(
         data,
@@ -341,22 +342,18 @@ describe('a headless run’s board', () => {
             },
           )
           expect(answered.output).not.toContain('Error:')
+          await started.promise
           const made = await readdir(runs)
           const folder = made.find((name) => name.startsWith(EXEC_TEAM_RUN_PREFIX))
           if (folder === undefined) throw new Error('the run has no folder')
-          const deadline = Date.now() + 30_000
-          while (gates.length === 0 && Date.now() < deadline)
-            await new Promise((resolve) => setTimeout(resolve, 25))
           // A folder where the board's temporary goes: the filesystem's own refusal.
           const blocked = path.join(runs, folder, `${EXEC_TEAM_BOARD_FILE}.new`)
           await mkdir(path.join(blocked, 'in-the-way'), { recursive: true })
-          // The worker ends and the next write fails alone, taking its temporary with it.
-          for (const reject of gates.splice(0)) reject(new Error('no worker in this suite'))
-          while ((await hasFile(blocked)) && Date.now() < deadline) {
-            for (const reject of gates.splice(0)) reject(new Error('no worker in this suite'))
-            await new Promise((resolve) => setTimeout(resolve, 25))
-          }
-          expect(await hasFile(blocked)).toBe(false)
+          // The worker ends, and every start after it is refused too. The next write fails alone.
+          refused.reject(new Error('no worker in this suite'))
+          // Nothing says so until the run's end, and that end clears this folder, so it is read
+          // here, with no deadline of its own. A temporary that stays ends at this case's limit.
+          while (await hasFile(blocked)) await new Promise((resolve) => setTimeout(resolve, 25))
         },
         held,
       ),
