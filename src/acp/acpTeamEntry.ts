@@ -36,6 +36,7 @@ import {
   ACP_TEAM_BOARD_FILE,
   ACP_TEAM_STORAGE_FOLDER,
   TEAM_MCP_SERVER_NAME,
+  TREE_EXIT_WAIT_MS,
   UI_TEXT,
   type AcpBackendKind,
 } from '../shared/constants'
@@ -903,8 +904,23 @@ class WorkspaceTeam {
     this.announced.clear()
     this.plans.clear()
     for (const sessionId of sessions) await this.binding.loaded()?.stopSessionTasks?.(sessionId)
-    // Headless runs wait the same way: nothing of a worker outlives the team.
-    await this.binding.dispose({ waitForWorkers: true })
+    // Nothing of a worker should outlive the team, so the end waits for each aborted
+    // one, within the grace a stopped process tree gets: a worker still in its start
+    // has not read its abort yet, and an editor's exit must not hang on it.
+    let grace: NodeJS.Timeout | undefined
+    try {
+      await Promise.race([
+        this.binding.dispose({ waitForWorkers: true }),
+        new Promise<void>((resolve) => {
+          grace = setTimeout(() => {
+            this.deps.log.warn('ACP team: an aborted worker had not finished; going on without it')
+            resolve()
+          }, TREE_EXIT_WAIT_MS)
+        }),
+      ])
+    } finally {
+      clearTimeout(grace)
+    }
     await this.boardFile.settled()
   }
 }

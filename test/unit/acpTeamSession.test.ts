@@ -49,6 +49,7 @@ import {
   ACP_TEAM_BOARD_FILE,
   ACP_TEAM_STORAGE_FOLDER,
   TEAM_MODEL_TEXT,
+  TREE_EXIT_WAIT_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -875,6 +876,22 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     await disposing
     expect(isDisposed).toBe(true)
   })
+
+  // A worker still in its start has not read its abort: the agent's exit must not hang on it.
+  it(
+    'goes on past a worker that never finishes, within the grace',
+    { timeout: TREE_EXIT_WAIT_MS * 3 },
+    async () => {
+      const { repo, held, port } = await heldTeam()
+      await delegateOne(port, repo)
+      await eventually(() => held.gates.length === 1, 'the worker start')
+      try {
+        await port.dispose()
+      } finally {
+        held.gates[0]?.reject(new Error('the worker conversation could not start'))
+      }
+    },
+  )
 
   it('keeps an unrelated failure’s own kind: a board that cannot be read is no refusal', async () => {
     const repo = await gitRepo()
