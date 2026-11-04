@@ -1,0 +1,250 @@
+# CC-INT12FIX — a refused landing says why, everywhere (2026-11-04)
+
+Lane `CC-INT12FIX`, worktree `C:/Users/Randy/Coding/mx-cc-small3`, branch `cc/int12` from `45edc0c346`, on the owner's Windows PC, with a
+throwaway Linux checkout in WSL. Nothing pushed. No Muse request, no paid call, no real `muse`, `MUSE_TEST_REAL_CLI` unset, no vault or
+credential-store file run or imported, no budget, bound or timeout raised, scratch in the worktree's `temp/`. Every vitest run named its
+files, `--maxWorkers=4`.
+
+## The red, and what was behind it
+
+`acpTeamSession` > `says a card that failed for real…`: "timed out waiting for the failed card's sentence", reproduced alone.
+
+**The coordinator's read, checked.**
+
+| The read                                                             | What the code does                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A held lock is now an answer, not a throw, so the catch never speaks | **Right.** `merges.merge` returns, `decideMerge` returns cleanly, `askMerge` says nothing                                                                                                                                                                     |
+| ...and that answer is `{status:'rework', refusal:{kind:'busy'}}`     | **Not so.** `TeamLanding.land` asks `knownHolder` first, and a bare lock is a known holder: `branched`, with a real branch `agents/landing/<uuid>` and `holder:{kind:'lock',path,owner:null}`. Printed from the real run                                      |
+| `busy` is what a person meets                                        | Only when an earlier landing's record is open (`hasOpenLanding`) or a lock appears between the holder check and the take. A real lander process paused mid-landing makes it here                                                                              |
+| `askMerge` ignores the refusal, manual and bypass                    | **Right**, both                                                                                                                                                                                                                                               |
+| `mergeRefusal(taskId)` is the source                                 | **Right, with one guard.** It is set before `decideMerge` returns, on both paths. It also stays recorded through a later Discard, so ACP reads it only after a Merge. Drill I3                                                                                |
+| The model's tool answer carries the refusal                          | Not in this path: the merge tool answers `{task_id, position}` at once, and the merge flow's own answer goes to `decideMerge`. The refusal's kind reaches the model through the queue's `returned` event (`teamHost.ts:987`). Not changed; named for the lead |
+
+A `busy` refusal also carried no holder at all, so "name the holder" had nothing to read. The port (`teamLandingEntry.ts`) now reads what holds
+the repository at that moment and attaches it. `TeamLanding`'s own logic is untouched.
+
+## 1. ACP tells the person
+
+`WorkspaceTeam.sayRefusedLanding` after the landing's `decideTeamMerge`, on the manual path and the bypass path, once per refused landing, as an
+`agent_message_chunk`. ACP has no Undo Merge, and `changedDuringLanding` offers one, so `changed` has its own sentence
+(`changedDuringLandingNoUndo`, all 14 tables) through `refusedLandingText`.
+
+**Named, not changed:** the `team/merge/<id>` tool call still ends `completed` when the landing was refused, so an editor may show a finished call
+beside the sentence. That status is the card's (`status:'completed'` on every outcome) and the brief asked for the message.
+
+## 2. One source for the words
+
+`src/core/team/teamMergeRefusalWords.ts`, `mergeRefusalSentence`, read by `teamMergeFlow.ts` for the card, by `teamTrafficProjection.ts` for
+Traffic (its `describeMergeRefusal` is gone) and by ACP. English and all 14 tables. Each sentence says what to do next.
+
+| Refusal                     | The person reads (English)                                                                                                                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `stale`                     | The workspace changed after this merge was checked, so nothing landed. Land it again to check it against your current files.                                                                                                                     |
+| `denied`                    | This landing was not approved, so nothing landed. Land it again to be asked again.                                                                                                                                                               |
+| `busy`, nothing holds it    | An earlier landing is still open, so nothing landed. Recover it, then land this one again.                                                                                                                                                       |
+| `busy`, another landing     | Another landing holds Git's lock at `{path}`. Wait for it to finish; if its window is gone, remove that file yourself and recover the landing. Nothing landed: land it again after that.                                                         |
+| `branched`, a bare lock     | Git's lock is held at `{path}`. If no Git command is running, remove that file yourself: Muse Spark Code never removes a lock it did not take. Nothing landed in your files: the change is kept on branch `{branch}`, ready to merge after that. |
+| A Git operation in progress | A Git operation is in progress (`{path}`). Finish or abort it. ...                                                                                                                                                                               |
+| Another window              | Another window is landing in this repository. Wait for it to finish. ...                                                                                                                                                                         |
+
+The holder is read by its shape and never printed as it came, and the sentence gives the branch's short name, the one a person types. The
+technical detail goes to the log through `mergeRefusalForLog`, in kinds and ids: `Team landing refused: branched, holder lock, landing <id>,
+window <id>, branch <ref>`. No path in the log, rule 18; the sentence has the path, because the person has to act on it.
+
+## 3. The tests
+
+- **The red case keeps its purpose:** the task's copy is removed while the person decides, so the landing really throws, and the session reads
+  `actionFailed`. Drill I5 shows what the filter is keeping out.
+- **A real held lock, manual and bypass:** real git, the real team host. The person reads the bare-lock sentence once, naming the lock and the real
+  branch; their file is untouched. **A real lander process mid-landing, manual and bypass:** the busy sentence, naming the landing.
+- **A refused landing then a Discard** says one sentence, not two.
+- **`teamHostRealParts`:** the card's `teamDecision` and Traffic's `reason` are that same sentence over a real held lock.
+- `teamMergeRefusalWords.test.ts`: every holder comes from the real probes over real folders; the German table; the log line.
+
+`teamLandingPause`'s exact refusal moved: a busy refusal now names its holder, and the case says so.
+
+## 4. The two named items
+
+**The headless board.** `execTeamEntry.ts` shares `core/team/teamBoardFile.ts` with the ACP agent. **What this does not change today:** the team
+host latches `saveFailure` after a failed save of its tasks, and nothing else in a headless run writes after it, so a poisoned chain had no later
+write to poison on this path. What can be shown there, and is: a failed write takes its temporary with it, and the run's end reports the failure,
+`EISDIR`. That a failed write does not reach the next is `teamBoardFile.test.ts`, over the same code.
+
+**`--mcp-always-load <server>`.** No design call was needed: repeated as `--untrusted-file` is, beside `--mcp-defer-tokens`, refused off the Model
+API as it is. A blank name is refused in words (`execServerNameEmpty`, all 14 tables). On the built agent: `node dist/acp.js exec --backend modelApi
+--max-budget-usd 1 --mcp-always-load " " task` says `--mcp-always-load needs the name of an MCP server.`, exit 2; with `--backend museCode`,
+`These options require the Model API backend (--backend modelApi): --mcp-always-load.`, exit 2. **Its reaching the host:** `backends.ts` passes it where it
+passes the threshold, by reading and type-check only; no run here declares tools, since that needs a model call.
+
+## Hosted red A: `lands the change on the editor's approval`, and what it found
+
+Run 41794406176, Windows shard 3: red at 4,698 ms, 3,000 of them the suite's poll, so that landing had not finished 3 s after the answer. How much
+longer it needed, the log cannot say.
+
+**What a landing really costs.** Real landings through the real team host and real git, timed from the person's answer, git's processes counted at
+`runGit`. The timing code lived in a throwaway copy of the suite, deleted after each run.
+
+| Repository  | Where                                                   | Samples | Answer to file in place, ms  | Answer to card closed, ms    | git processes                      |
+| ----------- | ------------------------------------------------------- | ------- | ---------------------------- | ---------------------------- | ---------------------------------- |
+| 1 file      | this PC, none of my other runs going                    | 6       | 1,574 to 2,555, median 1,845 | 1,736 to 3,759, median 2,047 | 93                                 |
+| 1 file      | beside four other real landing suites, `--maxWorkers=4` | 6       | 2,411 to 4,120, median 3,434 | 2,714 to 4,377, median 3,811 | 93                                 |
+| 101 files   | this PC                                                 | 2       | 6,951, 9,135                 | 9,110, 11,498                | 493, of them 407 `hash-object`     |
+| 1,001 files | this PC                                                 | 2       | 117,172, 123,567             | 145,351, 151,708             | 4,093, of them 4,007 `hash-object` |
+| 1 file      | Linux, WSL's own disk                                   | 2       | 205, 237                     | 229, 277                     | 93                                 |
+| 1,001 files | Linux, WSL's own disk                                   | 2       | 5,966, 6,002                 | 7,817, 7,864                 | 4,093                              |
+
+So the red reproduces here in kind: four of the six loaded samples had not put the file in place at 3 s, on a 20-thread PC. It was not a slow runner
+meeting a fair deadline; the deadline sat inside the real cost. The same 93 processes take about a quarter of a second on Linux, so this is what a process costs on Windows, and only hosted Windows went red. `cc-small3.md` records about 0.7 s for the whole case before the checked landing merged.
+
+**Product finding, not changed here, as briefed: on this base a landing's cost is linear in the size of the tree, one process per file, four times over.**
+`StagingCopy.snapshot` (`src/host/team/stagingCopy.ts`) spawns one `git hash-object -w --stdin` per tracked or unignored file, in sequence, and a landing takes four snapshots: the tree, the
+merged copy, the tree under the lock, the tree after (`teamLandingEntry.ts`, `TeamLanding.land`). In the 1,001-file repository `hash-object` is 139 to 143 s of the 145 to 151 s, about 35 ms a process.
+**Git's real `index.lock` is held across the last two of those: 56 to 67 s there**, and any git command of the person's that needs the index refuses for that long. At this repository's 11,230 tracked files that is about 26 minutes
+a landing by arithmetic from the table; I did not run it.
+
+**CC-WINLAND2 found the same thing on its own and has fixed it, on `cc/winland`, not on this branch:** `50fd5c644b` hashes the tree in one `git hash-object --no-filters --stdin-paths`, and its message gives 93 processes at
+any size. Read, not run by me. That leaves the 93, which is the 1-file row above and the cost that turned this test red, so this test's fix stands with or without that merge.
+
+**The fix to the test.** Waiting longer would only have moved the number. `eventually` and its deadline are gone from `acpTeamSession.test.ts`: every wait
+in the file now ends on something the product itself does. `lands the change` waits for the merge card to close, `team/merge/task-merge` completed, which
+`runMergeFlow` sends after the landing and its save have finished, and only then reads the file, so a landing that was refused fails the case rather
+than slipping past it (I20). Worker starts resolve when the start reaches its gate, and a refused start's retries are refused at once rather than swept
+every 10 ms. **What is still a clock:** each case's own limit, unraised: 15 s on Windows, 5 s elsewhere. A landing that stops answering ends there, named by
+the case (I19). I21 is the proof it left the clock: with a real 6 s wait in front of the landing, the case as it stood goes red and the case as it stands stays green.
+`waits for an aborted worker`'s 500 ms stays: it is a negative wait, nothing is being timed. Other suites with the same 3 s shape
+(`connectorApprovalButtons`, `connectorRuntime`, `githubClientAbort`) land nothing and were left alone.
+
+**The two earlier unread reds** in `cc-small3.md` (`asks for a merge` at 23,227 ms, `lands the change` at 20,903 ms) stay unread. Those are past the case's own
+limit, not the poll, and the numbers above do not reach them. **This round caught that shape with its output kept:** I10's first green ran 324 s rather than about 90, the suite's
+own `beforeAll` past its 30 s and five cases past their 15 s (`Test timed out in 15000ms`), with nothing broken and the next run, 3 s later, normal, while other lanes shared this PC. That is
+what the case limit does on a stalled machine, and those two are likely the same thing; likely, not shown.
+
+## Hosted red B: `100,000 lines remain virtual and queued Stop input responds below 100 ms`
+
+Run 41794406176, Linux shard 2: 277.1 ms against the bound of 100. **`4b7dbc192c` did not move it.** Real Chrome, the suite's own launched browser, the one case,
+each sample its own browser, on this PC, in alternating blocks. "Before" is `src/host/html.ts`, `src/webview/makerEntry.ts` and the test's fixture at
+`4b7dbc192c~1`, written back with sha256 compared. "Quiet" is the same 5 ms interval in the same page with nothing being rendered, the machine alone.
+
+| Condition                                   | Code   | Samples | Longest gap, ms: min, median, max | Quiet, ms: min, median, max |
+| ------------------------------------------- | ------ | ------- | --------------------------------- | --------------------------- |
+| This PC                                     | before | 10      | 20.8, 21.7, 25.3                  | 6.2, 6.7, 19.8              |
+| This PC                                     | after  | 10      | 20.0, 21.4, 24.3                  | 6.1, 11.8, 20.4             |
+| Pinned to 4 cores with 3 busy loops on them | before | 4       | 22.3, 23.6, 28.0                  | 6.2, 6.5, 6.6               |
+| Pinned to 4 cores with 3 busy loops on them | after  | 4       | 22.4, 23.3, 23.6                  | 6.0, 6.5, 6.6               |
+| Chrome's own 4x CPU throttle                | before | 5       | 66.5, 88.6, 121.2                 | 68.2, 101.6, 115.5          |
+| Chrome's own 4x CPU throttle                | after  | 5       | 83.3, 99.5, 108.2                 | 61.4, 121.4, 137.4          |
+
+Before and after sit on top of each other. Under the throttle the **quiet** control reaches past 100 ms with nothing to render, so that condition says what
+the metric does on a slow machine and little about the product. A first try at 2 pinned cores with 3 loops was thrown away: it starved the whole rig (Chrome's cold
+start 59 s, the sample past its own 180 s) and proved nothing. No condition here reached 277 ms: I cannot reproduce the hosted number, and there is no Linux Chrome sample.
+
+**The hosted history says the same.** The coordinator's logs hold an earlier miss of the same bound by the same clicker, a day before this commit existed: run
+41516831678, macOS shard 4, 2026-11-02, `worst-case search with 20000 repeated rows keeps Stop below 100 ms`, 158.7 ms. `m103-u.md` also carries
+`M103U-STOP-LATENCY` as an open residual on this bound since 2026-10-06.
+
+**The test is not changed; that call is the coordinator's.** What I would propose, the 100 ms untouched:
+
+1. **Best of three in one case.** The same payload three times in the one page; the smallest longest-gap must be under 100 ms. A stall the product causes is there every
+   time, and `m103-u.md`'s drill (a 150 ms block in rendering, read at 166.6 ms) would still fail all three; a runner's one hiccup would not. Cheapest, and still wall time.
+2. **The longest main-thread task by thread time,** from a Chrome trace (`RunTask`'s `tdur`). It does not count time another program took the core, so it measures our
+   work and nothing else. It is Chromium-only, the WebKit run would keep the wall-time read, and it no longer says what a person waits on a busy machine.
+3. **A control in the same page** (the quiet gap above) that voids a sample when the machine alone misses. Weakest: a void can hide a real miss.
+
+I would take 1, and add 2 only if 1 still flakes. Neither has been built or tried.
+
+## A correction to `cc-small3.md`
+
+That record said my drill runner "keeps everything now". It did not: the patch had failed silently, as I found starting this round. The two reds it
+names stay unread either way (see hosted red A). The runner does keep it now, `temp/small3/drills-full.log`, and the sentence there is corrected.
+
+## Drills
+
+Each an exact break, the named files, the exit code, the file written back and its sha256 compared.
+
+| Drill | The break                                                          | Red exit | Cases red | Read by                                                                     | Green exit |
+| ----- | ------------------------------------------------------------------ | -------- | --------- | --------------------------------------------------------------------------- | ---------- |
+| I1    | `acpTeamEntry.ts`: the manual path says nothing after the landing  | 1        | 1         | tells the person once, manual                                               | 0          |
+| I2    | `acpTeamEntry.ts`: the bypass path says nothing                    | 1        | 1         | tells the person once, bypass                                               | 0          |
+| I3    | `acpTeamEntry.ts`: the sentence is said on a Discard too (redone)  | 1        | 1         | says a refused landing once                                                 | 0          |
+| I4    | `acpTeamEntry.ts`: `changed` keeps the words that offer Undo       | 1        | 1         | offers an editor no Undo Merge                                              | 0          |
+| I5    | `acpTeamEntry.ts`: any thrown message reaches the person           | 1        | 1         | says a card that failed for real                                            | 0          |
+| I6    | `teamMergeRefusalWords.ts`: the holder printed as JSON             | 1        | 6         | `teamMergeRefusalWords`, the session, `teamHostRealParts`                   | 0          |
+| I7    | `teamTrafficProjection.ts`: Traffic has its own words              | 1        | 2         | `teamHostRealParts`                                                         | 0          |
+| I8    | `teamMergeFlow.ts`: the card has its own words                     | 1        | 1         | `teamHostRealParts`                                                         | 0          |
+| I9    | `teamLandingEntry.ts`: `busy` without its holder                   | 1        | 5         | the session, `teamLandingPause`                                             | 0          |
+| I10   | `teamMergeRefusalWords.ts`: a bare lock read as a landing (redone) | 1        | 4         | `teamMergeRefusalWords`, the session                                        | 0          |
+| I11   | `teamMergeRefusalWords.ts`: `refs/heads/` in the sentence          | 1        | 7         | `teamMergeRefusalWords`, the session, `teamHostRealParts`                   | 0          |
+| I12   | `teamMergeRefusalWords.ts`: a path in the log line                 | 1        | 1         | `teamMergeRefusalWords`                                                     | 0          |
+| I13   | `teamBoardFile.ts`: a failed write poisons the next                | 1        | 2         | `teamBoardFile`                                                             | 0          |
+| I14   | `teamBoardFile.ts`: the temporary left behind (redone)             | 1        | 2         | `teamBoardFile`, `teamLandingSurfaces`                                      | 0          |
+| I15   | `cliOptions.ts`: the flag not repeatable                           | 1        | 1         | `execArgs`                                                                  | 0          |
+| I16   | `execArgs.ts`: the flag not handed on                              | 1        | 1         | `execArgs`                                                                  | 0          |
+| I17   | `execArgs.ts`: a blank name taken                                  | 1        | 1         | `execArgs`                                                                  | 0          |
+| I18   | `execArgs.ts`: the flag allowed on any backend                     | 1        | 1         | `execArgs`                                                                  | 0          |
+| I19   | `acpTeamEntry.ts`: the merge card never closes                     | 1        | 1         | `lands the change`: ends at the case limit, 15 s, instead of hanging        | 0          |
+| I20   | `teamMerge.ts`: every landing refused while the case waits         | 1        | 1         | `lands the change`: the card closes, the file is not there                  | 0          |
+| I22   | `teamBoardFile.ts`: a failed write swallowed (redone)              | 1        | 1         | `takes a failed write`: `promise resolved "undefined" instead of rejecting` | 0          |
+
+**I21, the one that runs the other way:** a real 6 s wait in front of the landing (`teamMergeFlow.ts`), written back, sha256 compared. The case as it stood at
+`1de8cef919`: exit 1, "timed out waiting for the landed change". The case now: exit 0.
+
+**What went wrong on the way, in the open.**
+
+- **A whole run stopped by hand.** The first run of these failed I2's green at the suite's 3 s poll in one of my own new cases (`names the landing that holds the lock`, manual, 5,515 ms in all): hosted red A's
+  weakness, in my own code. So I moved those cases off the clock too, and ran everything again. A stopped run's numbers are not counted.
+- **I3 proved nothing, and was redone.** On the rerun its red went green with the break in: moving that case onto the card's close took away the time its negative check had been resting on, and the session closed
+  before the wrong sentence could come. The case now gives it one full turn of the loop. Redone: red exit 1, `expected [ …(2) ] to have a length of 1 but got 2`, green exit 0.
+- **I10's green failed with nothing broken, and was redone.** That is the stall told under hosted red A. Redone: red exit 1, 4 cases, green exit 0, 33 passed.
+- **My own board case had the same weakness, and my first cure was empty.** Linux showed it (below): a 30 s fall-through hiding that nothing had started. I moved it off the deadline and at first read the temporary after the
+  run's end, and I14's red showed the case green with the removal gone, since that end clears the folder. It is read while the run holds the folder now. Redone: red exit 1, that case at its 180 s limit and `fails one write alone`, green exit 0.
+
+## Suites
+
+Named files only, `--maxWorkers=4`, none importing a vault or credential-store module (four name the word in a help or settings table, their imports checked), `MUSE_TEST_REAL_CLI` unset.
+
+**Windows, on `49471a4ea1`, Node 24.20:** exit 1. 1 failed | 30 passed (31). 1 failed | 579 passed (580). **Red: ` test/unit/teamLandingSurfaces.test.ts > the governed git > lands over a person's tree with core.autocrlf and their line endings`.**
+
+That red is not in anything this lane changed, and it can be read only so far on this base: `TeamGitError: git --no-replace-objects exited with code 1`, empty stderr, in `StagingCopy.blob` under the governed, contained git. `processTeamGit` turns any failure into exit 1 here, so what really failed is hidden; CC-WINLAND2's `c6e1a64ef8` ends that on its branch. **The file alone, twice, after it:** first exit 1, both `the governed git` cases at their 180 s, while another lane's linkers held this PC at 100% (seven `link.exe`, read from the process list), with an `EBUSY` on `muse-m96c-landing-*` following from the case still running; the helper was still spawning, so slow, not hung. Then exit 0, 12 passed, 593 s, that load gone. Each git in those two cases goes through the job helper, once per file per snapshot on this base. Not changed here, as briefed.
+
+Files: `acpTeamSession`, `teamMergeRefusalWords`, `teamBoardFile`, `teamHostRealParts`, `teamLandingSurfaces`, `teamLandingPause`, `teamLandingProduct`, `teamLandingKilled`,
+`teamMergeCardLanding`, `teamEntries`, `teamAvailability`, `teamChunkPackaging`, `execArgs`, `execExactCount`, `execTeamFlags`, `mcpDefer`, `cliHelp`, `cliHelpConsistency`, `commandHelp`,
+`fontCli`, `m105bind`, `providersModels`, `scheduleRestoreSwitch`, `cx1r2Truth`, `cx1r4Truth`, `usageL10nGate`, `accountRestore`, `makerReviewBrowser`, `html`, `packagedBundles`, `bundleExports`.
+
+**Linux, that same tree, a fresh install in WSL's `/tmp` (gone with it), v26.13.0 on Linux 6.18.54.1-microsoft-standard-WSL2:** exit 1. 1 failed | 10 passed (11). 5 failed | 170 passed | 2 skipped (177).
+
+Red: ` test/unit/teamLandingSurfaces.test.ts > a headless run > settles at start what a dead run left, and never under a lock it finds`; ` test/unit/teamLandingSurfaces.test.ts > a headless run’s board > takes a failed write’s temporary away, and the run’s end reports the failure`; ` test/unit/teamLandingSurfaces.test.ts > an ACP session > asks at the first turn about a dead run: Keep leaves it, Recover settles it`; ` test/unit/teamLandingSurfaces.test.ts > the governed git > carries a landing through its contained launcher`; ` test/unit/teamLandingSurfaces.test.ts > the governed git > lands over a person's tree with core.autocrlf and their line endings`. Four of the five are the four hosted Linux and macOS named, CC-WINLAND2's to fix: the test's governor had no created-path helper, and `processTeamGit` read that as "no such ref". **The fifth is this lane's own new case,** `takes a failed write's temporary away`, red for the same reason: nothing could start there, and its 30 s fall-through hid that. That run was before I moved it off the deadline (`941da2d308`); hosted Linux and macOS would have gone red on it too.
+
+**So the same Linux copy took this head merged with `cc/winland` at `3d700480f0`,** the one conflict hunk resolved in the copy, nothing written back. `acpTeamSession` 27 passed, `teamMergeRefusalWords`, `teamBoardFile`, `teamHostRealParts`, `teamLandingPause`, `teamLandingChecks` all passed, and my board case passed at 8,767 ms. **Exit 1: 64 passed, 2 failed:** both `the governed git` cases past their 180 s limit (185 s, 198 s), on nothing but time, and `asks at the first turn` passed at 212 s under its own. The governed git is that slow in WSL at 4 workers; I did not run `cc/winland` alone to compare, and hosted Linux is what will say.
+Files: `acpTeamSession`, `teamMergeRefusalWords`, `teamBoardFile`, `teamHostRealParts`, `teamLandingSurfaces`, `teamLandingPause`, `teamLandingProduct`, `teamLandingKilled`, `execArgs`, `mcpDefer`, `superviseOrphan`.
+
+**After that run, `941da2d308` changed one test file, so on the final head:** `teamLandingSurfaces` and `teamBoardFile`, exit 0. 2 passed (2). 15 passed (15). `typecheck:unit` exit 0, `duplication` exit 0, eslint and prettier on that file exit 0.
+
+## Gates
+
+One after another on `49471a4ea1`, status lines 0, Node 22.19.0 (CI's major), nothing of mine touching the tree. **All 28 exit 0.** After it came one test file (under Suites) and this record.
+
+| Gate                                                                                                                 | Exit             |
+| -------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `format:check`                                                                                                       | 0                |
+| `lint:js:main`, `lint:js:unit`, `lint:js:tests`, `lint:css`, `lint:ps`                                               | 0, 0, 0, 0, 0    |
+| `typecheck`                                                                                                          | 0                |
+| `check:badges`, `check:tokens`, `check:art`, `check:l10n`, `check:reference`                                         | 0, 0, 0, 0, 0    |
+| `check:host-api`, `check:mhp`, `check:plan`, `check:roadmap`, `check:editor-matrix`, `check:catches`                 | 0, 0, 0, 0, 0, 0 |
+| `check:usable-reply`, `check:wrap-up-request`, `check:no-output-cap`, `check:no-round-cap`, `check:workflow-scripts` | 0, 0, 0, 0, 0    |
+| `deadcode`, `cycles`, `duplication`                                                                                  | 0, 0, 0          |
+| `build`                                                                                                              | 0                |
+| `security:audit`                                                                                                     | 0                |
+
+**Budgets, none raised, none crossed:** `resourceGovernor.js` 124.8 of 125, `modelApi.js` 519.5 of 525, `mcpPool.js` 74.8 of 75, `modelApiMcp.js` 74.8 of 75, `teamTraffic.js` 48.9 of 75, `teamHost.js` 126.5 of 130, `teamEngine.js` 93.8 of 100, `teamLanding.js` 56.2 of 75, `uiText.js` 120.0 of 125, `acp.js` 434.9 of 850, `execTeam.js` 47.8 of 53, `acpTeam.js` 61.2 of 75.
+
+## Not proven, and why
+
+- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B is not fixed:** it can go red again on any shared runner until the coordinator picks a shape.
+- **The hosted Windows landing's real duration.** Only "over 3 s" is known. The case's 15 s limit still applies, and a landing past it fails by name.
+- **B on Linux in real Chrome,** and the 277 ms itself: never reproduced.
+- **The two old unread reds** above.
+- **The 26-minute figure:** arithmetic from 101 and 1,001 files, never run at 11,230, and about this base; CC-WINLAND2's fix was not run here.
+- **`--mcp-always-load` reaching the Model API host in a real run:** read and type-checked. A run that declares tools needs a model call, and none was made.
+- **A headless board whose chain was really poisoned, end to end:** that path has no later write (section 4). No-poison is shown in `teamBoardFile.test.ts`.
+- **An editor's rendering:** the sentence arrives as an `agent_message_chunk` at the real ACP handler; no real editor was opened. The `team/merge/<id>` call still ends `completed` beside the refusal, as named above.
+- **The merge overlap:** `git merge-tree` of this head and `cc/winland` (`3d700480f0`) reports **one conflict, one hunk, the imports of `test/unit/teamLandingSurfaces.test.ts`**: this side adds `type ExecTeam, type ExecTeamDeps`, that side drops `runtimeWindowsJob`. Everything else merges by itself. It is not resolved here, and the merged whole has not been run.
