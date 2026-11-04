@@ -18287,11 +18287,7 @@ over the staging copy, refusal kind `checks`: in a governed slot where a contain
 proves a command's end (Windows' job, a Linux scope), and elsewhere in a folder of its
 own, used once, so its setup runs every time. MHP 1.6.0 re-frozen
 for `decideTeamMerge`'s `undo` and the card's `changedDuringLanding`; nothing of it
-has shipped. The merge reads a CRLF checkout over a repository that keeps LF as the
-text it is and writes it back in CRLF: every team merge on Git for Windows' default
-`core.autocrlf` used to conflict on every line, in place and in the copy alike. An ACP
-session asks about a dead run at its first turn, since its host binds before
-session/new has answered. A real crash mid-landing through the engine port is proved
+has shipped. A CRLF checkout over a repository that keeps LF merges as the text it is. A real crash mid-landing through the engine port is proved
 here on Windows in all three spellings; macOS and Linux are the same suite on hosted
 CI, and the three-platform box stays open until it is green on them. Record:
 `docs/certification/cc-winland.md`.
@@ -18308,6 +18304,11 @@ path: a folder used once and removed, its setup every time, and the permit back 
 the command's process group is signalled and gone. What left that group with `setsid`
 goes uncounted, the named limit. macOS is hosted CI's to prove. Record:
 `docs/certification/cc-winland.md` §11.
+
+**CC-LANDFAST (2026-11-04, the lead's call).** A landing's git cost is one number at any
+size, and only reads run under git's lock; every guard still reads the bytes on disk. A
+scoped launch is confirmed from the kernel, not by polling systemd. A check's answer is not
+lost to a busy machine. Record: `docs/certification/cc-winland.md` §12.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with

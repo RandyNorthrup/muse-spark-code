@@ -119,6 +119,19 @@ happened, not what was planned; superseded entries are kept.
 - **A program holding a file stops a team landing cleanly.** On Windows the landing puts
   back what it wrote and releases git's lock at once, says which file, and lands when you
   try again. It used to leave the lock for you to remove.
+- **A big team landing no longer holds git's lock for minutes, or fails.** A landing started
+  a couple of dozen git commands for every changed file, most while it held the lock your own
+  git needs: thirty files held it for about six minutes on Windows. It now starts the same
+  number at any size, and thirty files hold it for about three seconds. A task that changed
+  more than 256 files could not land at all, and now does.
+- **Many team commands starting at once no longer fail on Linux.** With 16 or more starting
+  together under a systemd user scope, most failed with a confirmation timeout. They all start
+  now, 384 at once in our test.
+- **A team check on a busy computer waits, and keeps its answer.** Short of memory or processor
+  time, a worker's or a landing's check failed at once with a bare code such as
+  `TEAM_HOST_BUSY`, and a slow start or close could lose the answer of a check that had passed.
+  It now waits to start, up to its own time limit, keeps the answer it has, and says in words
+  what stopped it.
 - **Your check commands run on a team task's merged result before it lands.** If one
   fails, nothing lands and the merge card names it. With no check commands set, the merge
   card is the only thing that asks, as before.

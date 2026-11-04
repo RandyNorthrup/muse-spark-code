@@ -11,6 +11,7 @@ import {
 import type { MergeVersion } from '../../core/team/mergeRoutine'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { isTeamGitError } from '../../core/team/teamGit'
+import { parseBlobBatch } from '../../core/team/teamMerge'
 import { isGitExitError, type GitProcess } from '../git'
 
 export interface SnapshotBlob {
@@ -52,8 +53,22 @@ export function checkIdentity(identity: TeamCheckIdentity): string {
     .digest('hex')
 }
 
+/** Git's modes for one landing: taken once under its lock, for the guards to judge a mode by. */
+export interface LandingFacts {
+  readonly head: string
+  readonly modes: ReadonlyMap<string, MergeVersion['mode']>
+  readonly usesFilesystemMode: boolean
+}
+/** What the tree holds now, and the facts it was read with. Nothing was written to read it. */
+export interface TeamTreeReading {
+  readonly head: string
+  readonly blobs: ReadonlyMap<string, SnapshotBlob>
+  readonly facts: LandingFacts
+}
+
 const MERGE_FILE_ERROR_EXIT = 128
 const EXECUTABLE_BITS = 0o111
+const SHA256_HEX_CHARS = 64
 const fileModeSchema = z.enum(['100644', '100755', '120000'])
 const NO_PROGRAMS = [
   '-c',
@@ -67,6 +82,37 @@ const NO_PROGRAMS = [
 ]
 const AUTHOR = ['-c', 'user.name=Muse Spark Code', '-c', 'user.email=team@muse-spark-code.invalid']
 const NO_CONVERSION = '* -text -eol -filter -ident -working-tree-encoding -diff -merge\n'
+/** A second pass drops what went away during the first; after that they are read one at a time. */
+const BLOB_LIST_PASSES = 2
+
+/**
+The id git gives these raw bytes as a blob, in a repository whose commits look like `head`: the
+same answer as `git hash-object --stdin`, with no process, so a guard costs a read of the file.
+*/
+export function blobId(bytes: Uint8Array, head: string): string {
+  // nosemgrep: javascript.lang.security.audit.crypto.use-of-sha1.use-of-sha1 -- git's own object name, compared with git's, never a security boundary of ours.
+  return createHash(head.length === SHA256_HEX_CHARS ? 'sha256' : 'sha1')
+    .update(`blob ${String(bytes.length)}\0`)
+    .update(bytes)
+    .digest('hex')
+}
+
+/**
+A file's mode as a guard judges it, with git's facts from the start of this landing. Where execute
+bits are real it is what the disk says now, so a chmod between two guards reads as a change, by
+name. Where they are not, git's retained mode stands, and nothing in the landing moves that: its
+index is locked, and a moved HEAD is refused by the reading after the batch.
+*/
+export function guardMode(
+  file: string,
+  filesystemMode: number,
+  facts: LandingFacts,
+): '100644' | '100755' {
+  if (facts.usesFilesystemMode)
+    return (filesystemMode & EXECUTABLE_BITS) === 0 ? '100644' : '100755'
+  const gitMode = facts.modes.get(file)
+  return gitMode === '100755' ? gitMode : '100644'
+}
 
 /** Git ran and refused, through either of the runners a staging copy is given. */
 const isGitFailure = (error: unknown): boolean => isGitExitError(error) || isTeamGitError(error)
@@ -107,35 +153,147 @@ export class StagingCopy {
 
   /**
   Each file's blob, of its raw bytes as `blob` takes them, or undefined for one no longer there. One
-  git process for the lot: a tree holds thousands of files, and a landing takes four snapshots.
+  git process for the lot: a tree holds thousands of files, and a landing reads it four times. With
+  no `shouldStore` the ids are worked out and no object is written.
   */
   private async fileBlobs(
     root: string,
     names: readonly string[],
-  ): Promise<readonly (string | undefined)[]> {
-    if (names.length > 0 && names.every((name) => !/[\r\n]/u.test(name))) {
+    head: string,
+    shouldStore: boolean,
+  ): Promise<ReadonlyMap<string, string>> {
+    const oids = new Map<string, string>()
+    // A line break cannot be listed; only those files go one at a time.
+    const odd = names.filter((name) => /[\r\n]/u.test(name))
+    let listed = names.filter((name) => !/[\r\n]/u.test(name))
+    const args = ['hash-object', ...(shouldStore ? ['-w'] : []), '--no-filters', '--stdin-paths']
+    for (let pass = 0; pass < BLOB_LIST_PASSES && listed.length > 0; pass += 1) {
       try {
-        const listed = await this.run(
+        const output = await this.run(
           root,
-          ['hash-object', '-w', '--no-filters', '--stdin-paths'],
-          Buffer.from(names.map((name) => `${path.resolve(root, name)}\n`).join('')),
+          args,
+          Buffer.from(listed.map((name) => `${path.resolve(root, name)}\n`).join('')),
         )
-        return listed.toString('utf8').trim().split('\n')
+        const answers = output.toString('utf8').trim().split('\n')
+        for (const [at, name] of listed.entries()) {
+          const oid = answers[at]
+          if (oid !== undefined) oids.set(name, oid)
+        }
+        listed = []
       } catch (error: unknown) {
-        // A file that went away mid-way stops the whole list: they are read one at a time below.
+        // A file that went away mid-way stops the whole list: once more without those gone.
         if (!isGitFailure(error)) throw error
+        listed = await this.stillThere(root, listed)
       }
     }
-    const oids: (string | undefined)[] = []
-    for (const name of names) {
+    for (const name of [...odd, ...listed]) {
       try {
-        oids.push(await this.blob(root, await readFile(path.resolve(root, name))))
+        const bytes = await readFile(path.resolve(root, name))
+        oids.set(name, shouldStore ? await this.blob(root, bytes) : blobId(bytes, head))
       } catch (error: unknown) {
         if (!isMissingPath(error)) throw error
-        oids.push(undefined)
       }
     }
     return oids
+  }
+
+  private async stillThere(root: string, names: readonly string[]): Promise<string[]> {
+    const there: string[] = []
+    for (const name of names) {
+      try {
+        await lstat(path.resolve(root, name))
+        there.push(name)
+      } catch (error: unknown) {
+        if (!isMissingPath(error)) throw error
+      }
+    }
+    return there
+  }
+
+  /**
+  Each link's blob, of the bytes it points with. To store them they go through one list as files of
+  their own, not one process each: a tree can hold many.
+  */
+  private async linkBlobs(
+    root: string,
+    links: readonly { readonly name: string; readonly target: Buffer }[],
+    head: string,
+    shouldStore: boolean,
+  ): Promise<ReadonlyMap<string, string>> {
+    if (!shouldStore) return new Map(links.map((link) => [link.name, blobId(link.target, head)]))
+    if (links.length === 0) return new Map()
+    const folder = path.join(this.temporaryRoot, randomUUID())
+    await mkdir(folder, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
+    try {
+      const files = links.map((_, at) => path.join(folder, String(at)))
+      for (const [at, link] of links.entries()) await writeFile(files[at] ?? '', link.target)
+      const oids = await this.fileBlobs(root, files, head, true)
+      return new Map(links.map((link, at) => [link.name, oids.get(files[at] ?? '') ?? '']))
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  }
+
+  /**
+  Every file the tree holds with its blob and mode: tracked, edited and untracked, ignored ones not.
+  `gone` names the committed files that are no longer there.
+  */
+  private async treeFiles(
+    root: string,
+    facts: Awaited<ReturnType<StagingCopy['fileModes']>>,
+    shouldStore: boolean,
+  ): Promise<{
+    readonly blobs: ReadonlyMap<string, SnapshotBlob>
+    readonly gone: readonly string[]
+  }> {
+    const canonical = await canonicalPath(root)
+    const listed = await this.run(root, [
+      'ls-files',
+      '-z',
+      '--cached',
+      '--others',
+      '--exclude-standard',
+    ])
+    const names = new Set(
+      [...listed.toString('utf8').split('\0'), ...facts.committed].filter((name) => name !== ''),
+    )
+    const gone: string[] = []
+    const files: { readonly name: string; readonly mode: MergeVersion['mode'] }[] = []
+    const links: { readonly name: string; readonly target: Buffer }[] = []
+    for (const name of names) {
+      const target = path.resolve(root, name)
+      const parent = await canonicalPath(path.dirname(target))
+      const relative = path.relative(canonical, parent)
+      if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
+        throw new Error(UI_TEXT.checkpointFailed)
+      try {
+        const info = await lstat(target)
+        if (info.isSymbolicLink()) {
+          links.push({ name, target: Buffer.from(await readlink(target)) })
+        } else {
+          if (!info.isFile()) throw new Error(UI_TEXT.checkpointFailed)
+          files.push({ name, mode: this.regularFileMode(name, info.mode, facts) })
+        }
+      } catch (error: unknown) {
+        if (!isMissingPath(error)) throw error
+        gone.push(name)
+      }
+    }
+    const blobs = new Map<string, SnapshotBlob>()
+    const linked = await this.linkBlobs(root, links, facts.head, shouldStore)
+    for (const [name, oid] of linked) blobs.set(name, { oid, mode: '120000' })
+    const oids = await this.fileBlobs(
+      root,
+      files.map((entry) => entry.name),
+      facts.head,
+      shouldStore,
+    )
+    for (const entry of files) {
+      const oid = oids.get(entry.name)
+      if (oid === undefined) gone.push(entry.name)
+      else blobs.set(entry.name, { oid, mode: entry.mode })
+    }
+    return { blobs, gone }
   }
 
   public async gitDirectory(root: string): Promise<string> {
@@ -154,28 +312,41 @@ export class StagingCopy {
     return output.toString('utf8').trim()
   }
 
-  public async readBlob(root: string, oid: string): Promise<Buffer> {
-    if (!/^[a-f0-9]+$/u.test(oid)) throw new Error(UI_TEXT.checkpointFailed)
-    return await this.run(root, ['cat-file', 'blob', oid])
+  /** Those blobs' bytes, in one git process however many they are. */
+  public async readBlobs(
+    root: string,
+    oids: readonly string[],
+  ): Promise<ReadonlyMap<string, Buffer>> {
+    if (oids.some((oid) => !/^[a-f0-9]+$/u.test(oid))) throw new Error(UI_TEXT.checkpointFailed)
+    const output = await this.run(
+      root,
+      ['cat-file', '--batch'],
+      Buffer.from(`${oids.join('\n')}\n`),
+    )
+    return parseBlobBatch(output, oids)
   }
 
   /** Git's retained mode wins on filesystems where execute bits are not authoritative. */
   public async fileModes(
     root: string,
     head: string,
-  ): Promise<{
-    readonly modes: ReadonlyMap<string, MergeVersion['mode']>
-    readonly usesFilesystemMode: boolean
-  }> {
+  ): Promise<LandingFacts & { readonly committed: readonly string[] }> {
     const modes = new Map<string, MergeVersion['mode']>()
-    // These queries only read metadata; retain every result and its precedence
-    // without paying four serial process launches at each file guard.
+    const committed: string[] = []
+    // These queries only read metadata; retain every result and its precedence.
     const [tree, index, difference, configured] = await Promise.all([
       this.run(root, ['ls-tree', '-r', '-z', head]),
       this.run(root, ['ls-files', '--stage', '-z']),
       this.run(root, ['diff-files', '--raw', '-z', '--no-ext-diff', '--no-textconv']),
-      this.run(root, ['config', '--type=bool', '--default=false', '--get', 'core.filemode']),
+      // Execute bits are never real on Windows, whatever this says.
+      process.platform === 'win32'
+        ? undefined
+        : this.run(root, ['config', '--type=bool', '--default=false', '--get', 'core.filemode']),
     ])
+    for (const entry of tree.toString('utf8').split('\0')) {
+      const tab = entry.indexOf('\t')
+      if (tab !== -1) committed.push(entry.slice(tab + 1))
+    }
     for (const entry of [
       ...tree.toString('utf8').split('\0'),
       ...index.toString('utf8').split('\0'),
@@ -193,16 +364,17 @@ export class StagingCopy {
       if (file !== undefined && mode.success) modes.set(file, mode.data)
     }
     return {
+      head,
       modes,
-      usesFilesystemMode:
-        process.platform !== 'win32' && configured.toString('utf8').trim() === 'true',
+      committed,
+      usesFilesystemMode: configured?.toString('utf8').trim() === 'true',
     }
   }
 
   public regularFileMode(
     file: string,
     filesystemMode: number,
-    retained: Awaited<ReturnType<StagingCopy['fileModes']>>,
+    retained: LandingFacts,
   ): '100644' | '100755' {
     const gitMode = retained.modes.get(file)
     const observedMode = (filesystemMode & EXECUTABLE_BITS) === 0 ? '100644' : '100755'
@@ -215,64 +387,33 @@ export class StagingCopy {
     return retained.usesFilesystemMode ? observedMode : '100644'
   }
 
+  /**
+  What the tree holds now, read under a landing's lock: every process only reads, and the file's bytes
+  are read fresh by git as `snapshot` reads them. It writes no object and makes no tree, so a tree
+  that matches an admission's has its objects from that admission's snapshot.
+  */
+  public async reading(root: string): Promise<TeamTreeReading> {
+    const head = await this.head(root)
+    const facts = await this.fileModes(root, head)
+    const { blobs } = await this.treeFiles(root, facts, false)
+    if ((await this.head(root)) !== head)
+      throw new Error(UI_TEXT.teamTrafficNotices.snapshotChanged)
+    return { head, blobs, facts }
+  }
+
   /** The Git-visible whole tree: HEAD plus tracked edits/deletions and nonignored untracked files. */
   public async snapshot(root: string): Promise<TeamSnapshot> {
-    const canonical = await canonicalPath(root)
     const head = await this.head(root)
-    const retainedModes = await this.fileModes(root, head)
+    const facts = await this.fileModes(root, head)
     await mkdir(this.temporaryRoot, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
     const index = path.join(this.temporaryRoot, `${randomUUID()}.index`)
-    const blobs = new Map<string, SnapshotBlob>()
     try {
       await this.run(root, ['read-tree', head], undefined, index)
-      const listed = await this.run(root, [
-        'ls-files',
-        '-z',
-        '--cached',
-        '--others',
-        '--exclude-standard',
-      ])
-      const base = await this.run(root, ['ls-tree', '-r', '--name-only', '-z', head])
-      const names = new Set(
-        [...listed.toString('utf8').split('\0'), ...base.toString('utf8').split('\0')].filter(
-          (name) => name !== '',
-        ),
-      )
-      const updates: string[] = []
-      const gone = (name: string) => `0 ${'0'.repeat(head.length)}\t${name}\0`
-      const kept = (name: string, oid: string, mode: MergeVersion['mode']) => {
-        blobs.set(name, { oid, mode })
-        updates.push(`${mode} ${oid}\t${name}\0`)
-      }
-      const files: { readonly name: string; readonly mode: MergeVersion['mode'] }[] = []
-      for (const name of names) {
-        const target = path.resolve(root, name)
-        const parent = await canonicalPath(path.dirname(target))
-        const relative = path.relative(canonical, parent)
-        if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
-          throw new Error(UI_TEXT.checkpointFailed)
-        try {
-          const info = await lstat(target)
-          if (info.isSymbolicLink()) {
-            kept(name, await this.blob(root, Buffer.from(await readlink(target))), '120000')
-          } else {
-            if (!info.isFile()) throw new Error(UI_TEXT.checkpointFailed)
-            files.push({ name, mode: this.regularFileMode(name, info.mode, retainedModes) })
-          }
-        } catch (error: unknown) {
-          if (!isMissingPath(error)) throw error
-          updates.push(gone(name))
-        }
-      }
-      const oids = await this.fileBlobs(
-        root,
-        files.map((entry) => entry.name),
-      )
-      for (const [at, entry] of files.entries()) {
-        const oid = oids[at]
-        if (oid === undefined) updates.push(gone(entry.name))
-        else kept(entry.name, oid, entry.mode)
-      }
+      const { blobs, gone } = await this.treeFiles(root, facts, true)
+      const updates = [
+        ...gone.map((name) => `0 ${'0'.repeat(head.length)}\t${name}\0`),
+        ...Array.from(blobs, ([name, blob]) => `${blob.mode} ${blob.oid}\t${name}\0`),
+      ]
       await this.run(
         root,
         ['update-index', '-z', '--index-info'],

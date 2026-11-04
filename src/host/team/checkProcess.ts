@@ -7,15 +7,71 @@
 // only `groupEnded`, enough for a folder never used again (M96c's rule stands:
 // a folder whose processes are not proved ended is never reused).
 
+import { setTimeout as delay } from 'node:timers/promises'
 import type { TeamAttempt } from '../../shared/team'
-import { TEAM_PROCESS_MODEL_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import {
+  TEAM_CHECK_HOST_BUSY,
+  TEAM_LOAD_SAMPLE_MS,
+  TEAM_PROCESS_MODEL_TEXT,
+} from '../../shared/constants'
 import type { CheckProcess } from './checkSlots'
-import type { Retirement, TeamProcessLifetime } from './processLifetime'
+import type { Retirement, TeamLaunchRequest, TeamProcessLifetime } from './processLifetime'
 
 /** The journal's task id for a check's own launches. */
 const CHECK_TASK_ID = 'team-check'
 /** A check that ended without an exit code (stopped at its limit, or by its signal) failed. */
 const EXIT_FAILED = 1
+/** A launch that was never confirmed never ran its command; a busy machine earns it two more tries. */
+const CHECK_LAUNCH_ATTEMPTS = 3
+
+const hasCode = (error: unknown, code: string): boolean =>
+  error instanceof Error && error.message === code
+const isHostBusy = (error: unknown): boolean => hasCode(error, 'TEAM_HOST_BUSY')
+const isUnconfirmed = (error: unknown): boolean => hasCode(error, 'TEAM_CONFIRMATION_TIMEOUT')
+const isLoadFailure = (error: unknown): boolean => isHostBusy(error) || isUnconfirmed(error)
+
+/**
+A check's launch, on a machine under load. The command is held until its launch is confirmed, so one
+that missed its confirmation never ran and can start again, as many as the safety limit allows.
+With the host short of memory or processor time no check starts, and running work continues (M96
+lane K): it waits to start for as long as it may run, or until the caller stops it.
+*/
+async function launchUnderLoad(
+  lifetime: TeamProcessLifetime,
+  launch: TeamLaunchRequest,
+  timeoutMs: number,
+  signal: AbortSignal | undefined,
+) {
+  const deadline = performance.now() + timeoutMs
+  let attempts = 0
+  for (;;) {
+    signal?.throwIfAborted()
+    let failure: unknown
+    try {
+      attempts += 1
+      return await lifetime.launch(launch)
+    } catch (error: unknown) {
+      if (!isLoadFailure(error)) throw error
+      failure = error
+    }
+    if (isUnconfirmed(failure)) {
+      if (attempts >= CHECK_LAUNCH_ATTEMPTS) throw failure
+      continue
+    }
+    const left = deadline - performance.now()
+    if (left <= 0) throw new Error(TEAM_CHECK_HOST_BUSY, { cause: failure })
+    await delay(Math.min(left, TEAM_LOAD_SAMPLE_MS), undefined, { signal })
+  }
+}
+
+/** The lifetime's own failures are bare codes; a worker and a person read sentences. */
+function checkFailureInWords(error: unknown): unknown {
+  if (!(error instanceof Error) || !/^TEAM_[A-Z_]+$/u.test(error.message)) return error
+  return new Error(fill(TEAM_PROCESS_MODEL_TEXT.hostCheckFailed, { code: error.message }), {
+    cause: error,
+  })
+}
 
 /** The proof a contained child's retirement gives the board: only a real OS container proves it. */
 export function proofOf(
@@ -31,7 +87,7 @@ export function proofOf(
 
 /** One contained run: stdout and stderr read together as the person's own terminal shows them. */
 export function checkProcessOver(lifetime: TeamProcessLifetime): CheckProcess {
-  return async (request) => {
+  const run: CheckProcess = async (request) => {
     request.signal?.throwIfAborted()
     const pieces: string[] = []
     const take = (chunk: Buffer): void => {
@@ -39,23 +95,28 @@ export function checkProcessOver(lifetime: TeamProcessLifetime): CheckProcess {
       pieces.push(text)
       request.onOutput?.(text)
     }
-    const contained = await lifetime.launch({
-      command: request.file,
-      args: request.args,
-      cwd: request.cwd,
-      env: request.env,
-      taskId: CHECK_TASK_ID,
-      priority: 'belowNormal',
-      // Read from the first byte: a check that ends at once must not lose its output.
-      attach: (spawned) => {
-        spawned.stdout.on('data', take)
-        spawned.stderr.on('data', take)
-        spawned.stdin.on('error', () => {
-          // A command that never reads its input closes the pipe; the exit code speaks.
-        })
-        spawned.stdin.end(request.input)
+    const contained = await launchUnderLoad(
+      lifetime,
+      {
+        command: request.file,
+        args: request.args,
+        cwd: request.cwd,
+        env: request.env,
+        taskId: CHECK_TASK_ID,
+        priority: 'belowNormal',
+        // Read from the first byte: a check that ends at once must not lose its output.
+        attach: (spawned) => {
+          spawned.stdout.on('data', take)
+          spawned.stderr.on('data', take)
+          spawned.stdin.on('error', () => {
+            // A command that never reads its input closes the pipe; the exit code speaks.
+          })
+          spawned.stdin.end(request.input)
+        },
       },
-    })
+      request.timeoutMs,
+      request.signal,
+    )
     const { child } = contained
     const exited = new Promise<number | null>((resolve) => {
       if (child.exitCode === null)
@@ -103,6 +164,13 @@ export function checkProcessOver(lifetime: TeamProcessLifetime): CheckProcess {
     } finally {
       clearTimeout(limit)
       request.signal?.removeEventListener('abort', stop)
+    }
+  }
+  return async (request) => {
+    try {
+      return await run(request)
+    } catch (error: unknown) {
+      throw checkFailureInWords(error)
     }
   }
 }
