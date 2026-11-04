@@ -480,6 +480,7 @@ export function createTeamProcessLifetime(options: {
 const CGROUP_ROOT = '/sys/fs/cgroup'
 const isUnreadable = (error: unknown): boolean =>
   errnoCode(error) === 'EACCES' || errnoCode(error) === 'EPERM'
+const isNoHierarchy = (error: unknown): boolean => isUnreadable(error) || isMissingPath(error)
 /** Missing, or (ENODEV) a file of a cgroup being removed while it is read. */
 const isGoingFile = (error: unknown): boolean =>
   isMissingPath(error) || errnoCode(error) === 'ENODEV'
@@ -505,7 +506,7 @@ export async function isSeenScopeGone(eventsFile: string, root = CGROUP_ROOT): P
   try {
     await lstat(path.join(root, 'cgroup.controllers'))
   } catch (error: unknown) {
-    if (isUnreadable(error) || isMissingPath(error)) return false
+    if (isNoHierarchy(error)) return false
     throw error
   }
   try {
