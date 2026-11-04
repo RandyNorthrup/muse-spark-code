@@ -2,7 +2,7 @@
 // repository, a worker clone with one committed change published back as
 // the agents ref, and the real git binary behind the `TeamGit` contract.
 import { execFile, spawnSync } from 'node:child_process'
-import { mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { TeamGitError, type TeamGit } from '../../../src/core/team/teamGit'
@@ -62,7 +62,8 @@ export const landingRunGit: TeamGit = (args, cwd, input, env) =>
         'core.autocrlf=false',
         ...args,
       ],
-      { cwd, ...(env !== undefined && { env }) },
+      // As much as the product's own runner takes: a large tree is no failure of git's.
+      { cwd, maxBuffer: 256 * 1024 * 1024, ...(env !== undefined && { env }) },
       (error, stdout, stderr) => {
         if (error === null) resolve(Buffer.from(stdout))
         else {
@@ -174,7 +175,10 @@ export async function makeLandingFixture(
   const root = await mkdtemp(path.join(tmpdir(), 'muse-m96c-landing-'))
   const storage = await mkdtemp(path.join(tmpdir(), 'muse-m96c-landing-store-'))
   await fixtureGit(root, ['init', '-b', 'main'])
-  for (const file of files) await writeFile(path.join(root, file), bytesOf(file, 'before'))
+  for (const file of files) {
+    await mkdir(path.dirname(path.join(root, file)), { recursive: true })
+    await writeFile(path.join(root, file), bytesOf(file, 'before'))
+  }
   await fixtureGit(root, ['add', '-A'])
   await fixtureGit(root, ['commit', '-m', 'base'])
   const baseOut = await fixtureGit(root, ['rev-parse', 'HEAD'])

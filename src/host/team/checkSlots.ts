@@ -34,10 +34,16 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { RunnerTestFailedError, type CheckJob, type CheckResult } from '../../core/runners/routing'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
 import { isSamePath } from '../../core/paths'
-import { GIT_METADATA_OPTIONS, UI_TEXT } from '../../shared/constants'
+import {
+  GIT_METADATA_OPTIONS,
+  TEAM_LOAD_SAMPLE_MS,
+  TEAM_PROCESS_MODEL_TEXT,
+  UI_TEXT,
+} from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { gitFilterOptions } from '../git'
 
@@ -224,10 +230,20 @@ export class CheckSlots {
   private give(slot: Slot): void {
     if (!slot.uncertain) slot.busy = false
   }
+  /** No check starts on a host short of memory or processor time: it waits, as long as it may run. */
+  private async untilHostEases(job: CheckJob): Promise<void> {
+    const deadline = performance.now() + job.timeoutMs
+    while (this.deps.isHostBusy()) {
+      const left = deadline - performance.now()
+      if (left <= 0) throw new Error(TEAM_PROCESS_MODEL_TEXT.hostCheckBusy)
+      await delay(Math.min(left, TEAM_LOAD_SAMPLE_MS), undefined, { signal: job.signal })
+      this.admit(job)
+    }
+  }
   /** One job's folder, through the governor's queue when it is lent, and given back after. */
   private async withFolder<T>(job: CheckJob, use: (slot: Slot) => Promise<T>): Promise<T> {
     this.admit(job)
-    if (this.deps.isHostBusy()) throw new Error(UI_TEXT.teamRunners.busy)
+    await this.untilHostEases(job)
     if (this.governed === undefined) {
       const slot = this.take()
       try {
