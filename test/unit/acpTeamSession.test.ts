@@ -977,8 +977,10 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
       await log.until(hasSpoken)
       rmSync(path.join(repo, '.git', 'index.lock'))
       await port.seamsFor(repo).teamRunner.merge({ task_id: 'task-merge' }, context())
-      // The Discard's own end: the card closes a second time.
+      // The Discard's own end: the card closes a second time. A wrong sentence would come in this
+      // same turn of the loop, on the way back from the decision, so one full turn lets it speak.
       await log.until((seen) => seen.filter((update) => isMergeCallEnd(update)).length === 2)
+      await new Promise((resolve) => setImmediate(resolve))
       await session.close()
       expect(saidIn(log.updates)).toHaveLength(1)
     } finally {
