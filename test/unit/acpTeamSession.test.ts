@@ -158,6 +158,16 @@ async function failureOf(request: Promise<unknown>): Promise<unknown> {
   throw new Error('expected this to fail')
 }
 
+/** What preparing a team session in this folder fails with. */
+async function prepareFailure(dataFolder: string, repo: string): Promise<unknown> {
+  const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
+  try {
+    return await failureOf(port.prepareNew(repo, ORCHESTRATOR))
+  } finally {
+    await port.dispose()
+  }
+}
+
 /** Polls one condition the product itself drives; a timeout is the failure. */
 async function eventually(isDone: () => boolean, label: string): Promise<void> {
   const deadline = Date.now() + 3000
@@ -900,14 +910,9 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     mkdirSync(path.join(dataFolder, 'acp', workspaceKey(repo), ACP_TEAM_BOARD_FILE), {
       recursive: true,
     })
-    const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
-    try {
-      const failure = await failureOf(port.prepareNew(repo, ORCHESTRATOR))
-      expect(failure).toBeInstanceOf(Error)
-      expect(isAcpTeamRefusal(failure)).toBe(false)
-    } finally {
-      await port.dispose()
-    }
+    const failure = await prepareFailure(dataFolder, repo)
+    expect(failure).toBeInstanceOf(Error)
+    expect(isAcpTeamRefusal(failure)).toBe(false)
   })
 
   it('brands a stored-team sentence with its slot filled as a refusal', async () => {
@@ -917,16 +922,11 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     const teamJson = teamJsonPath(repo, process.platform)
     mkdirSync(path.dirname(teamJson), { recursive: true })
     writeFileSync(teamJson, JSON.stringify({ sharedFiles: 1 }))
-    const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
-    try {
-      const failure = await failureOf(port.prepareNew(repo, ORCHESTRATOR))
-      expect(isAcpTeamRefusal(failure)).toBe(true)
-      expect(failure).toMatchObject({
-        message: fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'sharedFiles' }),
-      })
-    } finally {
-      await port.dispose()
-    }
+    const failure = await prepareFailure(dataFolder, repo)
+    expect(isAcpTeamRefusal(failure)).toBe(true)
+    expect(failure).toMatchObject({
+      message: fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'sharedFiles' }),
+    })
   })
 
   it('reads a stored file no further than its bound, however large the file is', async () => {
@@ -937,14 +937,9 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
     // Past what a whole-file read can take at all (2 GiB, ERR_FS_FILE_TOO_LARGE), and
     // sparse where the system can: the reader that stops at its bound never knows.
     truncateSync(openAndClose(stored), TWO_GIB_AND_A_BYTE)
-    const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
-    try {
-      const failure = await failureOf(port.prepareNew(repo, ORCHESTRATOR))
-      expect(isAcpTeamRefusal(failure)).toBe(true)
-      expect(failure).toMatchObject({ message: UI_TEXT.execTeamStateUnreadable })
-    } finally {
-      await port.dispose()
-    }
+    const failure = await prepareFailure(dataFolder, repo)
+    expect(isAcpTeamRefusal(failure)).toBe(true)
+    expect(failure).toMatchObject({ message: UI_TEXT.execTeamStateUnreadable })
   })
 
   it('reports a capped worker as failed, with its report', async () => {
