@@ -8196,9 +8196,10 @@
             },
             (error) => {
               writeAxeResult({
-                error: [String(error), ...webviewSaid.map((said) => `the webview said: ${said}`)].join(
-                  '; ',
-                ),
+                error: [
+                  String(error),
+                  ...webviewSaid.map((said) => `the webview said: ${said}`),
+                ].join('; '),
               })
             },
           )
