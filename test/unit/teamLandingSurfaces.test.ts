@@ -4,7 +4,7 @@
 // exec team, real repositories, the contained launcher as the agent process configures it.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
@@ -15,7 +15,11 @@ import { configureResources } from '../../src/core/resources/admission'
 import { applyTeamMerge } from '../../src/core/team/teamMerge'
 import { processTeamGit } from '../../src/core/team/workers/workerOpsEntry'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { createExecTeam } from '../../src/runtime/exec/execTeamEntry'
+import {
+  createExecTeam,
+  type ExecTeam,
+  type ExecTeamDeps,
+} from '../../src/runtime/exec/execTeamEntry'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { storedTeamSnapshotFile } from '../../src/runtime/teamSnapshotFile'
 import {
@@ -23,6 +27,8 @@ import {
   ACP_TEAM_STORAGE_FOLDER,
   EXEC_TEAM_LANDING_FOLDER,
   UI_TEXT,
+  EXEC_TEAM_BOARD_FILE,
+  EXEC_TEAM_RUN_PREFIX,
 } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
@@ -127,7 +133,13 @@ async function writeStoredTeam(dataFolder: string, cwd: string): Promise<void> {
   )
 }
 
-const oneHeadlessRun = async (dataFolder: string, cwd: string): Promise<void> => {
+const oneHeadlessRun = async (
+  dataFolder: string,
+  cwd: string,
+  during?: (team: ExecTeam) => Promise<void>,
+  startWorker: ExecTeamDeps['startWorker'] = () =>
+    Promise.reject(new Error('no worker in this suite')),
+): Promise<void> => {
   const team = await createExecTeam(
     {
       dataFolder,
@@ -143,7 +155,7 @@ const oneHeadlessRun = async (dataFolder: string, cwd: string): Promise<void> =>
       log: silentCoreLog(),
       readFile: readUpTo,
       listModels: () => Promise.resolve([LEAD, WORKER]),
-      startWorker: () => Promise.reject(new Error('no worker in this suite')),
+      startWorker,
       onWritten: () => undefined,
       secretLiterals: () => [],
       lowerWorkerCap: () => undefined,
@@ -153,6 +165,7 @@ const oneHeadlessRun = async (dataFolder: string, cwd: string): Promise<void> =>
   )
   try {
     await team.prepare(LEAD)
+    await during?.(team)
   } finally {
     await team.close()
   }
@@ -273,6 +286,82 @@ describe('a headless run', () => {
     await oneHeadlessRun(data, fixture.root)
     expect(await landingStatuses(storage)).toEqual(['recovered'])
     expect(await batchOf(fixture.root)).toEqual(['before', 'before', 'before', 'before'])
+  }, 180_000)
+})
+
+/** A run's folder sits in the temporary folder, so this run's is pointed at one a case can see. */
+async function inTemporaryFolder(folder: string, run: () => Promise<void>): Promise<void> {
+  const names = ['TEMP', 'TMP', 'TMPDIR'] as const
+  const kept = names.map((name) => process.env[name])
+  for (const name of names) process.env[name] = folder
+  try {
+    await run()
+  } finally {
+    for (const [index, name] of names.entries()) {
+      const value = kept[index]
+      if (value === undefined) Reflect.deleteProperty(process.env, name)
+      else process.env[name] = value
+    }
+  }
+}
+
+describe('a headless run’s board', () => {
+  const fixtureFor = landingFixturesIn('asCreated')
+
+  // The team host stops writing once a save of its tasks has failed, so no later write comes in
+  // this path: what can show here is that the run shares the board writes and says so at its end.
+  // That a failed write does not reach the next is teamBoardFile.test.ts, over the same code.
+  it('takes a failed write’s temporary away, and the run’s end reports the failure', async () => {
+    const fixture = await fixtureFor('task-board', BATCH)
+    const data = await scratch('muse-landing-exec-')
+    await writeStoredTeam(data, fixture.root)
+    const runs = await scratch('muse-landing-runs-')
+    // The worker's start is held, so the writes its end brings come after the way is blocked.
+    const gates: ((reason: Error) => void)[] = []
+    const held: ExecTeamDeps['startWorker'] = () =>
+      new Promise<never>((_resolve, reject) => {
+        gates.push(reject)
+      })
+    const run = inTemporaryFolder(runs, () =>
+      oneHeadlessRun(
+        data,
+        fixture.root,
+        async (team) => {
+          const answered = await team.teamRunner.delegate(
+            {
+              tasks: [
+                { role: 'engineering', brief: 'work', reason: { code: 'parallel', detail: 'x' } },
+              ],
+            },
+            {
+              sessionId: 'headless',
+              approvalMode: 'acceptEdits',
+              signal: new AbortController().signal,
+              orchestratorModelId: LEAD,
+            },
+          )
+          expect(answered.output).not.toContain('Error:')
+          const made = await readdir(runs)
+          const folder = made.find((name) => name.startsWith(EXEC_TEAM_RUN_PREFIX))
+          if (folder === undefined) throw new Error('the run has no folder')
+          const deadline = Date.now() + 30_000
+          while (gates.length === 0 && Date.now() < deadline)
+            await new Promise((resolve) => setTimeout(resolve, 25))
+          // A folder where the board's temporary goes: the filesystem's own refusal.
+          const blocked = path.join(runs, folder, `${EXEC_TEAM_BOARD_FILE}.new`)
+          await mkdir(path.join(blocked, 'in-the-way'), { recursive: true })
+          // The worker ends and the next write fails alone, taking its temporary with it.
+          for (const reject of gates.splice(0)) reject(new Error('no worker in this suite'))
+          while ((await hasFile(blocked)) && Date.now() < deadline) {
+            for (const reject of gates.splice(0)) reject(new Error('no worker in this suite'))
+            await new Promise((resolve) => setTimeout(resolve, 25))
+          }
+          expect(await hasFile(blocked)).toBe(false)
+        },
+        held,
+      ),
+    )
+    await expect(run).rejects.toMatchObject({ code: 'EISDIR' })
   }, 180_000)
 })
 
