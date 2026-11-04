@@ -26,6 +26,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { MODELS_FIRST_PAINT_KEY, buildModelsFirstPaint } from './helpers/modelsFirstPaintBuild.mjs'
 import { startReviewBrowser } from './helpers/reviewBrowser.mjs'
 import {
+  ESTIMATOR_PACKAGING_KEY,
   PRODUCTION_BUILD_KEY,
   PRODUCTION_BUILD_SUITES,
   VISUAL_BUILD_KEY,
@@ -144,6 +145,25 @@ export default async function setup(project) {
       throw new Error(`Shared production build failed; diagnostics: ${log}`, { cause: error })
     }
     project.provide(PRODUCTION_BUILD_KEY, production)
+    if (
+      testFiles.some((file) =>
+        file.replaceAll('\\', '/').endsWith('/estimatorPricePackaging.test.mjs'),
+      )
+    ) {
+      // Its modules are heavy and no other suite wants them. A failure here belongs to that suite
+      // alone, so it is handed over as the suite's to say, and the shard's other files still run.
+      try {
+        const { estimatorPackaging } = await import('./helpers/estimatorPackaging.mjs')
+        const inventory = await estimatorPackaging(
+          production,
+          path.join(root, 'estimator-packaging'),
+        )
+        process.stdout.write(`estimator packaging inventory: ${inventory.spent.join(', ')}\n`)
+        project.provide(ESTIMATOR_PACKAGING_KEY, inventory)
+      } catch (error) {
+        project.provide(ESTIMATOR_PACKAGING_KEY, { error: String(error?.stack ?? error) })
+      }
+    }
     if (
       testFiles.some((file) =>
         ['/visualStability.test.mjs', '/visualCapture.test.mjs'].some((suite) =>
