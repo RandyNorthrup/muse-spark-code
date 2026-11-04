@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 64,
-      "GENERIC": 240,
+      "GENERIC": 239,
       "CLEANUP": 236
     },
     "host": {
@@ -2332,11 +2332,6 @@
       "file": "src/core/team/workers/workerOps.ts",
       "identity": "4ce68fb96f7e348336298c91f7d3c95a009e40b7e02a7d696b6e15b87a6c7b58",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/team/workers/workerOps.ts",
-      "identity": "3bdc0c0f5344f324c3718c370fafdb53b2da2692dd3dd79a474ef91bdedaa3fa",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/team/workers/workerToolIo.ts",

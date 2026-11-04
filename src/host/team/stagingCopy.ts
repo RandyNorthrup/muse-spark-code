@@ -68,6 +68,9 @@ const NO_PROGRAMS = [
 const AUTHOR = ['-c', 'user.name=Muse Spark Code', '-c', 'user.email=team@muse-spark-code.invalid']
 const NO_CONVERSION = '* -text -eol -filter -ident -working-tree-encoding -diff -merge\n'
 
+/** Git ran and refused, through either of the runners a staging copy is given. */
+const isGitFailure = (error: unknown): boolean => isGitExitError(error) || isTeamGitError(error)
+
 /** Git plumbing only; lifecycle launchers supply the real process via injection. */
 export class StagingCopy {
   private readonly env: NodeJS.ProcessEnv
@@ -120,7 +123,7 @@ export class StagingCopy {
         return listed.toString('utf8').trim().split('\n')
       } catch (error: unknown) {
         // A file that went away mid-way stops the whole list: they are read one at a time below.
-        if (!isGitExitError(error) && !isTeamGitError(error)) throw error
+        if (!isGitFailure(error)) throw error
       }
     }
     const oids: (string | undefined)[] = []
