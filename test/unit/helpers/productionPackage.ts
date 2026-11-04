@@ -16,10 +16,13 @@ import { withoutCredentials } from '../../../src/runtime/credentialVariables'
 
 export const PRODUCTION_BUILD_KEY = 'productionBuild'
 export const VISUAL_BUILD_KEY = 'visualBuild'
+export const ESTIMATOR_PACKAGING_KEY = 'estimatorPackaging'
 declare module 'vitest' {
   export interface ProvidedContext {
     [PRODUCTION_BUILD_KEY]: string
     [VISUAL_BUILD_KEY]: string
+    [ESTIMATOR_PACKAGING_KEY]:
+      { required: string[]; packaged: string[]; spent: string[] } | { error: string }
   }
 }
 export const PRODUCTION_BUILD_SUITES = [
