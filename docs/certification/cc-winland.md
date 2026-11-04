@@ -223,7 +223,19 @@ also showed `Protected PathsNone` on any card with no protected path, an older f
 `TeamCards.tsx` with one space. `node scripts/a11y.mjs team-cards team-traffic-recovery`: 8
 pages, 4 themes, 0 rules violated.
 
-@@GATES@@
+The static job's gates, one pass on `9bd9ea8165`, Node 22.23.4, exit codes: `format:check` 0, `lint` 0, `typecheck` 0, `check:badges` 0, `check:tokens` 0, `check:art` 0, `check:l10n` 0, `check:reference` 0, `check:host-api` 0, `check:mhp` 0, `check:plan` 0, `check:roadmap` 0, `check:editor-matrix` 0, `check:catches` 0, `check:usable-reply` 0, `check:wrap-up-request` 0, `check:no-output-cap` 0, `check:no-round-cap` 0, `check:workflow-scripts` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `build` 0, `security:audit` 0. Semgrep,
+pinned, on the 25 changed source files: 0 findings, exit 0. An earlier pass on `ef3ffadfba` refused
+`duplication` (a clone between `teamAvailability` and the new surfaces suite) and `typecheck` (a
+check identity without its `timeoutSeconds` in the new checks suite); both were the new suites', and
+`f24f37bfd0` answered them. Only this record's gate lines follow the pass: Prettier and
+`check:plan` ran on that commit, exit 0.
+
+Budgets, none raised (`npm run build`, the bundle check inside it, exit 0): `dist/extension.js`
+527.9 of 600 KiB, `dist/resourceGovernor.js` 124.8 of 125 KiB, `dist/teamHost.js` 125.9 of 130 KiB,
+`dist/teamEngine.js` 93.8 of 100 KiB, `dist/teamLanding.js` 56.1 of 75 KiB, `dist/teamProcess.js`
+367.4 of 375 KiB, `dist/teamTraffic.js` 48.4 of 75 KiB, `dist/uiText.js` 119.5 of 125 KiB,
+`dist/execTeam.js` 47.6 of 53 KiB, `dist/acp.js` 434.2 of 850 KiB. The landing added nothing to
+`dist/resourceGovernor.js`, and `dist/teamEngine.js` shrank from 98.1 KiB: the applier moved out of it.
 
 ## 9. Commits
 
