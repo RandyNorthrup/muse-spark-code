@@ -179,27 +179,27 @@ needs not to, since the copy never converts.
 Each: an exact edit, the named file with a name filter, the exit code, the file written back and
 its digest compared. All 19 exit 1, all restored.
 
-| #   | Broken on purpose                                               | Red in                                             | What it said                                              |
-| --- | --------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------- |
-| W1  | `teamEnginePorts.ts` whole, as at `f572397f23`: merges in place | product, plans and lands                           | `expected [] to deeply equal [ 'landed' ]`: no record     |
-| W2  | a team host starts without settling                             | product, a team host settles                       | `expected 'after\n' to be 'before\n'`                     |
-| W3  | a landing does not settle first                                 | product, settles first                             | `status: 'rework'` for `merged`                           |
-| W4  | a stopped batch closes `landed`                                 | product, does not pass as landed                   | the record's status                                       |
-| W5  | `changed` mapped to merged                                      | product, does not pass as landed                   | `expected 'merged' to be 'rework'`                        |
-| W6  | Undo tries the file the batch never reached                     | product, does not pass as landed                   | `kept` holds `d.txt`                                      |
-| W7  | a held file does not roll back at once                          | killed, a held file                                | `EPERM ... rename` reaches the caller, with the lock left |
-| W8  | the port reads the workspace as spelled                         | product, `link` red, `shortName` green (§2 item 3) | linked root                                               |
-| W9  | the card has no Undo Merge                                      | card, names what changed                           | no such button                                            |
-| W10 | Traffic has no `undoBatch`                                      | real parts, the card names it                      | `expected [ 'landNow' ] to include 'undoBatch'`           |
-| W11 | no look at unsaved files before the first write                 | product, stops a landing whole                     | `expected 'after\n' to be 'before\n'`                     |
-| W12 | a failed check treated as passed                                | product, a check that fails                        | `status: 'merged'`                                        |
-| W13 | the port ignores a check's exit                                 | checks, a check that fails                         | `status: 'merged'`                                        |
-| W14 | a headless run does not settle                                  | surfaces, a headless run                           | `[ 'open' ]` for `[ 'recovered' ]`                        |
-| W15 | a headless run journals in its run's folder                     | surfaces, a headless run                           | `[ 'open' ]` for `[ 'recovered' ]`                        |
-| W16 | an ACP session never asks at its turn                           | surfaces, an ACP session                           | `[]` for `[ [ 'Recover', 'Keep' ] ]`                      |
-| W17 | an ACP session asks every turn                                  | surfaces, an ACP session                           | asked twice                                               |
-| W18 | the raw-byte comparison back: `isCrlf` false                    | surfaces, line endings (7 cases), governed CRLF    | `Conflicts need the task copy`; `status: 'rework'`        |
-| W19 | mixed line endings read as a CRLF checkout                      | surfaces, refuses rather than rewrites             | `promise resolved ... instead of rejecting`               |
+| #   | Broken on purpose                                               | Red in                                             | What it said                                          |
+| --- | --------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| W1  | `teamEnginePorts.ts` whole, as at `f572397f23`: merges in place | product, plans and lands                           | `expected [] to deeply equal [ 'landed' ]`: no record |
+| W2  | a team host starts without settling                             | product, a team host settles                       | `expected 'after\n' to be 'before\n'`                 |
+| W3  | a landing does not settle first                                 | product, settles first                             | `status: 'rework'` for `merged`                       |
+| W4  | a stopped batch closes `landed`                                 | product, does not pass as landed                   | the record's status                                   |
+| W5  | `changed` mapped to merged                                      | product, does not pass as landed                   | `expected 'merged' to be 'rework'`                    |
+| W6  | Undo tries the file the batch never reached                     | product, does not pass as landed                   | `kept` holds `d.txt`                                  |
+| W7  | a held file does not roll back at once                          | killed, a held file                                | `EPERM ... rename` reaches the caller                 |
+| W8  | the port reads the workspace as spelled                         | product, `link` red, `shortName` green (§2 item 3) | linked root                                           |
+| W9  | the card has no Undo Merge                                      | card, names what changed                           | no such button                                        |
+| W10 | Traffic has no `undoBatch`                                      | real parts, the card names it                      | `expected [ 'landNow' ] to include 'undoBatch'`       |
+| W11 | no look at unsaved files before the first write                 | product, stops a landing whole                     | `expected 'after\n' to be 'before\n'`                 |
+| W12 | a failed check treated as passed                                | product, a check that fails                        | `status: 'merged'`                                    |
+| W13 | the port ignores a check's exit                                 | checks, a check that fails                         | `status: 'merged'`                                    |
+| W14 | a headless run does not settle                                  | surfaces, a headless run                           | `[ 'open' ]` for `[ 'recovered' ]`                    |
+| W15 | a headless run journals in its run's folder                     | surfaces, a headless run                           | `[ 'open' ]` for `[ 'recovered' ]`                    |
+| W16 | an ACP session never asks at its turn                           | surfaces, an ACP session                           | `[]` for `[ [ 'Recover', 'Keep' ] ]`                  |
+| W17 | an ACP session asks every turn                                  | surfaces, an ACP session                           | asked twice                                           |
+| W18 | the raw-byte comparison back: `isCrlf` false                    | surfaces, 4 line-ending cases, governed CRLF       | `Conflicts need the task copy`; `status: 'rework'`    |
+| W19 | mixed line endings read as a CRLF checkout                      | surfaces, refuses rather than rewrites             | `promise resolved ... instead of rejecting`           |
 
 ## 8. Suites and gates
 
