@@ -631,30 +631,32 @@ export async function recoverOpenLandings(
   }
   const journal = storeLandingJournal(ownerStoreOf)
   const gitDirectory = await staging.gitDirectory(root)
-  const landing = rollbackLanding({
-    deps,
-    admit,
-    root,
-    staging,
-    journal,
-    gitDirectory,
-    authorize: async (intent) => {
-      admit()
-      if (intent.windowInstanceId === owner.instanceId) return true
-      const found = open.find((item) => item.record.id === intent.id)
-      if (found?.storeOwner.instanceId !== intent.windowInstanceId) return false
-      return await hasConfirmedTakeover({
-        admit,
-        policy,
-        authority,
-        record: found.record,
-        storeOwner: found.storeOwner,
-      })
-    },
-  })
+  const canRecover = async (intent: LandingIntent): Promise<boolean> => {
+    admit()
+    if (intent.windowInstanceId === owner.instanceId) return true
+    const found = open.find((item) => item.record.id === intent.id)
+    if (found?.storeOwner.instanceId !== intent.windowInstanceId) return false
+    return await hasConfirmedTakeover({
+      admit,
+      policy,
+      authority,
+      record: found.record,
+      storeOwner: found.storeOwner,
+    })
+  }
   let recovered = 0
   for (const { record } of open) {
     admit()
+    // Each its own: git's facts are kept for the length of one landing, never across two.
+    const landing = rollbackLanding({
+      deps,
+      admit,
+      root,
+      staging,
+      journal,
+      gitDirectory,
+      authorize: canRecover,
+    })
     const outcome = await landing.recover(record)
     if (outcome.status === 'landed' || outcome.status === 'changed') recovered++
   }
