@@ -338,7 +338,7 @@ processes and reads no clock.
 
 **What each system has proved.**
 
-- **Linux, real, not hosted.** WSL's Arch as above, at `50fd5c644b`, exit 0 with a scope and exit 0 with
+- **Linux, real, not hosted.** WSL's Arch as above, at `1aeb8ac571`, exit 0 with a scope and exit 0 with
   none: `teamGitLauncher`, `teamLandingSnapshot`, `teamLandingChecks`, `teamLandingSurfaces`,
   `teamLandingProduct`, `teamLandingKilled`, `teamLandingPause`, `teamHostRealParts`, `teamEnginePorts`,
   `teamMergePlan`, `teamProcessWorkers`, `teamWorkerChecks`, `teamProcessLifetime`, `execTeamSweep`,
@@ -346,7 +346,7 @@ processes and reads no clock.
   156 passed, 9 skipped each way (the skips: the held-file cases, Windows-only, and worker cases that need
   a `muse` this rig does not have). That includes a real SIGKILL through the engine's port in two spellings,
   and the built bundles' run with a real kill and the CRLF landing, the same ten lines as §4. Its own
-  production build at `794d3cd`: exit 0, budgets as on Windows. WSL is not a hosted runner, and the distro's
+  production build at `1aeb8ac571`: exit 0, budgets as on Windows. WSL is not a hosted runner, and the distro's
   systemd scope is not what a runner has; the no-scope run is the nearer of the two.
 - **macOS: nothing run by me.** It takes the same paths as Linux with no scope (a process group, and the
   created-path helper from `native/darwin/build.sh`, which the hosted test job builds), and the hosted logs
@@ -382,7 +382,28 @@ Windows, `temp/drillsw.mjs`:
 
 **Suites and gates on the final code.**
 
-@@FINAL@@
+Windows, this PC, named files, `--maxWorkers=4`, each exit 0: at `794d3cd`, `teamGitLauncher`,
+`teamLandingSnapshot`, `teamLandingChecks`, `teamLandingSurfaces`, `teamLandingProduct`, `teamLandingKilled`,
+`teamLandingPause`, `teamHostRealParts`, `teamEnginePorts`, `teamMergePlan`, `teamMergeCardLanding`,
+`acpTeamSession`: 12 files, 96 passed, 1 skipped. `teamProcessWorkers`, `teamCheckSlotsGoverned`, `execTeamSweep`,
+`execTeamLedger`, `execTeamFlags`, `teamAvailability`, `acpTeamContracts`, `acpTeamServe`, `teamChunkPackaging`,
+`mhpContract`, `manifest`, `pathGuardSpawns`: 12 files, 199 passed, 12 skipped. The last code commit only moved two
+catches behind named guards; at `1aeb8ac571` the four suites over them ran again, exit 0, 19 passed, 1 skipped, and
+W20, W23, W25, L4 and L6 went red again.
+
+The static job's gates, one pass on `1aeb8ac571`, Node 22.23.4, exit codes: `format:check` 0, `lint` 0, `typecheck` 0, `check:badges` 0, `check:tokens` 0, `check:art` 0, `check:l10n` 0, `check:reference` 0, `check:host-api` 0, `check:mhp` 0, `check:plan` 0, `check:roadmap` 0, `check:editor-matrix` 0, `check:catches` 0, `check:usable-reply` 0, `check:wrap-up-request` 0, `check:no-output-cap` 0, `check:no-round-cap` 0, `check:workflow-scripts` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `build` 0, `security:audit` 0. Semgrep, pinned, on the three
+changed source files: 0 findings, exit 0. An earlier pass on `c91983d273` refused `check:catches` (the two new catches
+read as generic) and `check:host-api` (the new fs import in the table); `1aeb8ac571` answered both, and the catch
+baseline falls by one, the old `processTeamGit` site. The Linux build, not the Windows gates, first found the lazy
+registry naming a function I had moved. After this pass only this section changed: Prettier and `check:plan`
+ran on that commit, exit 0.
+
+Budgets, none raised, none near but the one that was: `dist/resourceGovernor.js` 124.8 of 125 KiB, unchanged.
+`dist/teamProcess.js` 367.9 of 375, `dist/teamLanding.js` 56.7 of 75, `dist/teamWorkerOps.js` 14.4 of 17,
+`dist/teamEngine.js` 93.8 of 100, `dist/extension.js` 527.9 of 600.
+
+The throwaway checkout, its Node and what the runs left in WSL's `/tmp` were removed afterwards.
 
 **Commits.** `8942620fe5` → `c6e1a64ef8` (landing checks on POSIX, the swallow, the rig) → `50fd5c644b` (the
-snapshot) → the commit carrying these corrections. Not pushed.
+snapshot) → `794d3cd` (the lazy registry) → `c91983d273` (these corrections) → `1aeb8ac571` (what
+`check:catches` and `check:host-api` asked) → the commit carrying these last lines. Not pushed.
