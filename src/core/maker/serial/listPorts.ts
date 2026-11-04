@@ -1,5 +1,6 @@
 import { open, readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
+import { WINDOWS_JSON_ASSEMBLY } from '../../../shared/constants'
 import { type SerialIdentity } from './identity'
 import {
   parseArduinoPorts,
@@ -27,12 +28,12 @@ export interface PortListDependencies {
 }
 
 /**
-Windows' port list. Each command outside PowerShell's core names its module, so PowerShell imports
-that module and never looks through every module on its path for the command: a module of the
-person's that exports the same name would answer the list instead, and on a machine full of modules
-the look can cost far more than the list.
+Windows' port list, always as an array. It names no cmdlet: a cmdlet not yet loaded makes Windows
+PowerShell analyse every module on its path first, about 20 s where those are large and no analysis
+cache is reached (docs/certification/m51.md, cc-winfix2.md), and a module on that path that exports
+the same name would answer the list.
 */
-export const WINDOWS_PORT_LIST_SCRIPT = String.raw`Microsoft.PowerShell.Utility\ConvertTo-Json -Compress -InputObject @(CimCmdlets\Get-CimInstance Win32_PnPEntity -Filter "PNPClass='Ports'" | ForEach-Object { $portName = (Microsoft.PowerShell.Management\Get-ItemProperty -LiteralPath ('Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\' + $_.PNPDeviceID + '\Device Parameters') -Name PortName -ErrorAction SilentlyContinue).PortName; [pscustomobject]@{ Name = $_.Name; PNPDeviceID = $_.PNPDeviceID; PortName = $portName } })`
+export const WINDOWS_PORT_LIST_SCRIPT = String.raw`$ErrorActionPreference = 'Stop'; [void][Reflection.Assembly]::Load('${WINDOWS_JSON_ASSEMBLY}'); $rows = @(foreach ($port in ([wmisearcher]"SELECT Name, PNPDeviceID FROM Win32_PnPEntity WHERE PNPClass='Ports'").Get()) { $portName = $null; try { $portName = [Microsoft.Win32.Registry]::GetValue('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\' + $port['PNPDeviceID'] + '\Device Parameters', 'PortName', $null) } catch { $portName = $null }; @{ Name = $port['Name']; PNPDeviceID = $port['PNPDeviceID']; PortName = $portName } }); [System.Web.Script.Serialization.JavaScriptSerializer]::new().Serialize($rows)`
 
 /** Discovery has no serial provider or open primitive by construction. */
 export async function listSerialPorts(deps: PortListDependencies): Promise<SerialIdentity[]> {

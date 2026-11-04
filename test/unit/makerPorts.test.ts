@@ -1,13 +1,9 @@
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { windowsPowerShell } from '../../src/core/execGuard'
-import { runProgram } from '../../src/host/processTree'
 import { checkFlashIdentity } from '../../src/core/maker/flashIdentity'
 import { identifyBoard, isSameSerialIdentity } from '../../src/core/maker/serial/identity'
-import { listSerialPorts } from '../../src/core/maker/serial/listPorts'
+import { listSerialPorts, WINDOWS_PORT_LIST_SCRIPT } from '../../src/core/maker/serial/listPorts'
+import { withoutModuleAutoLoading } from './helpers/noModuleAutoLoading'
 import {
   parseArduinoPorts,
   parseCimPorts,
@@ -27,10 +23,12 @@ function runMetadataCommand(file: string, args: readonly string[]): Promise<stri
   })
 }
 
+/** The script's own WMI query, which a test can answer in its place. */
+const WMI_QUERY =
+  '([wmisearcher]"SELECT Name, PNPDeviceID FROM Win32_PnPEntity WHERE PNPClass=\'Ports\'").Get()'
+
 function runEmptyCim(_file: string, args: readonly string[]): Promise<string> {
-  const command = args
-    .at(-1)!
-    .replace('CimCmdlets\\Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'"', '@()')
+  const command = args.at(-1)!.replace(WMI_QUERY, '@()')
   return runMetadataCommand('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -198,6 +196,18 @@ describe('serial metadata parsers', () => {
     ).toBe(true)
   })
 
+  // M51's proof: with module auto-loading off a cmdlet is simply not recognized, so neither a clock
+  // nor a heavy module folder is needed. The list's cmdlets are what makerWindowEngine waited on,
+  // about 20 s, on three hosted runs.
+  it.runIf(process.platform === 'win32')(
+    'lists ports through .NET alone, always as an array',
+    async () => {
+      const rows: unknown = JSON.parse(await withoutModuleAutoLoading(WINDOWS_PORT_LIST_SCRIPT))
+      expect(Array.isArray(rows)).toBe(true)
+      expect(parseCimPorts(JSON.stringify(rows), LIMITS.maxBytes)).toBeInstanceOf(Array)
+    },
+  )
+
   if (process.platform === 'win32')
     it('emits a JSON array for an empty real PowerShell enumeration', async () => {
       expect(
@@ -219,13 +229,13 @@ describe('serial metadata parsers', () => {
         run: (file, args) =>
           runMetadataCommand(file, [
             ...args.slice(0, -1),
-            String.raw`function Get-CimInstance { [pscustomobject]@{ Name = 'Bench ESP32 (COM7) (COM8)'; PNPDeviceID = 'USB\VID_303A&PID_1001\ESP9' } }; function Get-ItemProperty { param($LiteralPath, $Name, $ErrorAction); if ($LiteralPath -ne 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\VID_303A&PID_1001\ESP9\Device Parameters' -or $Name -ne 'PortName') { throw 'test-registry-target' }; [pscustomobject]@{ PortName = 'COM9' } }; ` +
+            String.raw`class TestRegistry { static [object] GetValue([string] $key, [string] $name, [object] $missing) { if ($key -ne 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\VID_303A&PID_1001\ESP9\Device Parameters' -or $name -ne 'PortName') { throw 'test-registry-target' }; return 'COM9' } }; ` +
               (args.at(-1) ?? '')
-                .replace(String.raw`CimCmdlets\Get-CimInstance`, 'Get-CimInstance')
                 .replace(
-                  String.raw`Microsoft.PowerShell.Management\Get-ItemProperty`,
-                  'Get-ItemProperty',
-                ),
+                  WMI_QUERY,
+                  String.raw`@(@{ Name = 'Bench ESP32 (COM7) (COM8)'; PNPDeviceID = 'USB\VID_303A&PID_1001\ESP9' })`,
+                )
+                .replace('[Microsoft.Win32.Registry]', '[TestRegistry]'),
           ]),
       })
       expect(ports).toEqual([
@@ -318,38 +328,6 @@ describe('flash target identity', () => {
       expect(
         checkFlashIdentity({ port: 'COM7', vid: '2e8a', pid }, { family: 'rp2350' }).status,
       ).toBe('unknown')
-    }
-  })
-})
-
-describe.runIf(process.platform === 'win32')('the port list under real PowerShell', () => {
-  it('asks each command of its own module: a module on the path cannot answer the list', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'muse-port-list-'))
-    try {
-      // The last folder a look for the name reaches before Windows' own modules (run 41738951665).
-      await mkdir(path.join(root, 'ZPersonal'))
-      await writeFile(
-        path.join(root, 'ZPersonal', 'ZPersonal.psm1'),
-        "function Get-CimInstance { [pscustomobject]@{ Name = 'Shadow (COM999)'; PNPDeviceID = 'SHADOW\\1' } }\nExport-ModuleMember -Function Get-CimInstance\n",
-      )
-      const systemRoot = process.env['SystemRoot'] ?? ''
-      const shell = windowsPowerShell(systemRoot, {
-        PATH: process.env['PATH'],
-        SystemRoot: systemRoot,
-      })
-      const listed = await listSerialPorts({
-        ...LIMITS,
-        platform: 'win32',
-        powershell: shell.file,
-        run: (file, args) =>
-          runProgram(file, args, {
-            ...shell.env,
-            PSModulePath: `${root};${path.win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules')}`,
-          }),
-      })
-      expect(listed.map((port) => port.port)).not.toContain('COM999')
-    } finally {
-      await rm(root, { recursive: true, force: true })
     }
   })
 })
