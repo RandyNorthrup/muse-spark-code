@@ -117,7 +117,7 @@ describe("the person's check commands over a team landing", () => {
     const task = landingTask(fixture)
     return await productLandingPorts(fixture, {
       checks: () => ({
-        commands: state.checks.map(({ name, command }) => ({ name, command })),
+        commands: state.checks.map(({ name, command }) => ({ name, command, timeoutSeconds: 0 })),
         platform: process.platform,
         setupCommand: '',
         cacheKey: '',

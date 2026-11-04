@@ -91,6 +91,11 @@ async function deadWindowIn(fixture: LandingFixture, storage: string): Promise<v
   await running.kill()
 }
 
+async function readUpTo(file: string, maxBytes: number): Promise<Uint8Array> {
+  const bytes = await readFile(file)
+  return bytes.subarray(0, maxBytes)
+}
+
 async function batchOf(root: string): Promise<readonly string[]> {
   const read = await Promise.all(BATCH.map((file) => readFile(path.join(root, file), 'utf8')))
   return read.map((text) => text.trim())
@@ -136,10 +141,7 @@ const oneHeadlessRun = async (dataFolder: string, cwd: string): Promise<void> =>
       signal: new AbortController().signal,
       now: () => Date.now(),
       log: silentCoreLog(),
-      readFile: async (file, maxBytes) => {
-        const bytes = await readFile(file)
-        return bytes.subarray(0, maxBytes)
-      },
+      readFile: readUpTo,
       listModels: () => Promise.resolve([LEAD, WORKER]),
       startWorker: () => Promise.reject(new Error('no worker in this suite')),
       onWritten: () => undefined,
