@@ -14,7 +14,7 @@ import { connectedWire } from './helpers/panelWire'
 
 /** The lease id the editor answers with, in the shape the contract parses. */
 const LEASE_ID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
-const log = stderrLogger(() => undefined, 'error')
+const log = stderrLogger(() => undefined, 'warn')
 
 async function leased() {
   const { connection, editor } = await connectedWire(['lifecycle', 'auth'])
