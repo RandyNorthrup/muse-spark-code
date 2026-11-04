@@ -9,7 +9,7 @@ import { applyTeamMerge } from '../../src/core/team/teamMerge'
 import type { TeamGit } from '../../src/core/team/teamGit'
 import type { EngineLandingPorts } from '../../src/host/team/teamLandingEntry'
 import { gitLaunchProfile } from '../../src/core/team/workers/workerOpsEntry'
-import { UI_TEXT } from '../../src/shared/constants'
+import { TEAM_WRITE_SET_MAX, UI_TEXT } from '../../src/shared/constants'
 import { landingFixturesIn } from './helpers/teamLander'
 import {
   fixtureGit,
@@ -161,14 +161,15 @@ describe('what a landing costs in git processes', () => {
   }, 120_000)
 
   it('carries more files than one write set may name, all of them', async () => {
-    const files = batch(300)
+    const files = batch(TEAM_WRITE_SET_MAX + 1)
     const fixture = await fixtureFor('task-many', files, OWN_BYTES)
     const { outcome } = await land(fixture)
     expect(outcome.status).toBe('merged')
-    expect(outcome.written).toHaveLength(300)
-    expect(await bytes(fixture, 'file-299.txt')).toBe('after of file-299.txt\n')
+    expect(outcome.written).toHaveLength(files.length)
+    const last = files.at(-1) ?? ''
+    expect(await bytes(fixture, last)).toBe(`after of ${last}\n`)
     const [record] = await landingRecords(fixture.storage)
-    expect(record?.files).toHaveLength(300)
+    expect(record?.files).toHaveLength(files.length)
     expect(record?.status).toBe('landed')
   }, 300_000)
 })
@@ -179,7 +180,10 @@ describe('a landing record larger than a settings file', () => {
     'still lands, past the 1 MiB other records keep to',
     async () => {
       const long = 'n'.repeat(200)
-      const files = Array.from({ length: 3200 }, (_, at) => `${long}-${String(at)}.txt`)
+      const files = Array.from(
+        { length: 1400 },
+        (_, at) => `${long}/${long}/${long}/${long}-${String(at)}.txt`,
+      )
       const fixture = await fixtureFor('task-long', files)
       const { outcome } = await land(fixture)
       expect(outcome.status).toBe('merged')

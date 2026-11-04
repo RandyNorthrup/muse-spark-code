@@ -20,7 +20,7 @@ import path from 'node:path'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
-import { withDeadline } from '../../core/timeouts'
+import { DeadlineError, withDeadline } from '../../core/timeouts'
 
 /** C1/T attach the reserved permit to their registry; no second admission or sampler. */
 export interface TeamProcessRegistryPort {
@@ -422,7 +422,12 @@ export function createTeamProcessLifetime(options: {
           // Confirmation/journal failure must not hide a child whose retirement is uncertain.
           failedChildren.add(launched)
           lifecycle.retire()
-          await launched.retire()
+          try {
+            await launched.retire()
+          } catch (error_: unknown) {
+            // Still held in failedChildren for dispose; what stopped the launch is what is said.
+            if (!isDeadlinePassed(error_)) throw error_
+          }
           throw error
         }
       })()
@@ -485,6 +490,8 @@ const isNoHierarchy = (error: unknown): boolean => isUnreadable(error) || isMiss
 /** Missing, or (ENODEV) a file of a cgroup being removed while it is read. */
 const isGoingFile = (error: unknown): boolean =>
   isMissingPath(error) || errnoCode(error) === 'ENODEV'
+
+const isDeadlinePassed = (error: unknown): boolean => error instanceof DeadlineError
 
 /** Where a process's membership cannot be read because it has gone: nothing to say about it yet. */
 const isProcessGone = (error: unknown): boolean =>
@@ -1117,6 +1124,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           { once: true },
         )
       })
+      const endSeen = (): Retirement | undefined => result.end
       const confirm = (value: LaunchConfirmation) => {
         result.confirmation = value
         events.dispatchEvent(new Event('confirmed'))
@@ -1272,8 +1280,14 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         async retire() {
           lifecycle.retire()
           if (result.end !== undefined) {
-            await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
-            return await ended
+            // END proved the job empty. What is left is the helper closing, which a busy machine
+            // can make slow, and a command's answer is not lost to that.
+            try {
+              await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
+            } catch (error: unknown) {
+              if (!isDeadlinePassed(error)) throw error
+            }
+            return result.end
           }
           if (send === undefined) {
             // This is our own spawned helper, still awaiting the control gate.
@@ -1299,16 +1313,24 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
                 if (result.end !== undefined) return
                 // A held launch already received STOP through lifecycle.retire.
                 // Await that write; a second STOP can hit its now-closed pipe.
-                const stopping = heldCancellation ?? send?.('STOP')
-                void stopping?.catch(reject)
+                // A helper already gone has nothing to stop: its close is what is waited for.
+                const stopping =
+                  heldCancellation ?? (child.exitCode === null ? send?.('STOP') : undefined)
+                void stopping?.catch((error: unknown) => {
+                  if (child.exitCode === null)
+                    reject(error instanceof Error ? error : new Error(String(error)))
+                })
               }),
               NATIVE_CONFIRM_MS,
               'TEAM_WINDOWS_RETIREMENT_TIMEOUT',
             )
+          } catch (error: unknown) {
+            // END arrived while this waited: the proof stands however slowly the helper closes.
+            if (endSeen() === undefined || !isDeadlinePassed(error)) throw error
           } finally {
             failure.abort()
           }
-          return await ended
+          return endSeen() ?? (await ended)
         },
       }
     },

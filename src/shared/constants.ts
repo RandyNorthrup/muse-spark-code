@@ -10421,6 +10421,10 @@ export const TEAM_PROCESS_MODEL_TEXT = {
   hostJournalForeign: 'this window cannot take over another window’s team records',
   hostBusy:
     'this computer is short of memory or processor time, so no new team agent was started: run the task again when it has eased',
+  hostCheckBusy:
+    'this computer stayed short of memory or processor time for as long as the check may run, so it was not run: run it again when it has eased',
+  hostCheckFailed:
+    'the check could not be run to its end, so there is no result ({code}): run it again; the Muse Spark log has the details',
   hostLaunchFailed:
     'the team agent’s process could not be started ({code}); the Muse Spark log has the details',
 } as const
