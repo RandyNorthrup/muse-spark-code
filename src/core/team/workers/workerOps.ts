@@ -609,12 +609,38 @@ function isOwnGitExit(error: unknown): error is Error & { readonly code: number 
   )
 }
 
+/** Git commands that only read, whatever follows them. */
+const READING_GIT: ReadonlySet<string> = new Set([
+  'cat-file',
+  'diff-files',
+  'ls-files',
+  'ls-tree',
+  'rev-parse',
+])
+
+/**
+How a git command launches. One that only reads is a probe, as the runtime's own git runner has it:
+the same admission and the same containment, with no temp root of its own (D87.14). That root is two
+thirds of a launch on Windows, and git never uses it. Anything not known to only read runs contained.
+*/
+export function gitLaunchProfile(args: readonly string[]): 'contained' | 'probe' {
+  let at = 0
+  while (args[at]?.startsWith('-') === true) at += args[at] === '-c' || args[at] === '-C' ? 2 : 1
+  const command = args[at]
+  const rest = args.slice(at + 1)
+  const isReading =
+    (command !== undefined && READING_GIT.has(command)) ||
+    (command === 'hash-object' && !rest.includes('-w')) ||
+    (command === 'config' && rest.includes('--get'))
+  return isReading ? 'probe' : 'contained'
+}
+
 /** Binary-safe git through the governed contained launcher (first use loads it here). */
 export function processTeamGit(platform: NodeJS.Platform): TeamGit {
   const fallbackEnv = workerEnvironment(process.env, platform)
   return async (args, cwd, input, env) => {
     try {
-      const { stdout } = await execResourceFileBytes('contained', 'git', [...args], {
+      const { stdout } = await execResourceFileBytes(gitLaunchProfile(args), 'git', [...args], {
         env: env ?? fallbackEnv,
         cwd,
         input,
