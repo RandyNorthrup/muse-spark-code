@@ -53,9 +53,9 @@ function coldStart(label, file, args, env = process.env) {
   const ended = result.error === undefined ? `exit ${String(result.status)}` : result.error.message
   process.stdout.write(`${label} cold start: ${String(Date.now() - started)} ms (${ended})\n`)
 }
-// CimCmdlets is a module of its own, and WMI's first query is a cost of its own: the port
-// list and the process table read them (makerWindowEngine and m96dCoordinatorEndpoint passed
-// 15 s on run 41677635406, with the PowerShell start above already paid).
+// CimCmdlets is a module of its own, and WMI's first query is a cost of its own: the process
+// table reads them (m96dCoordinatorEndpoint passed 15 s on run 41677635406, with the PowerShell
+// start above already paid).
 function warmWindowsPowerShell() {
   if (process.platform !== 'win32') return
   coldStart(
