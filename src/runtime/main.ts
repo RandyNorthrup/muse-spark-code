@@ -206,6 +206,7 @@ import { lspLoader } from './lsp/lspBundle'
 import { panelCompanionLoader, panelLoader } from './panel/panelBundle'
 import type { PanelRuntimeDeps } from './panel/panelEntry'
 import { superviseLoader } from './supervise/superviseBundle'
+import { watchSupervisor } from './supervise/supervisorWatch'
 import { connectorRemoteLoader } from './connector/remoteBundle'
 import { storageGuardLoader } from './connector/storageGuardBundle'
 import type { ScheduleWakeAuthorization } from './schedules/registration'
@@ -3515,6 +3516,7 @@ async function run(): Promise<void> {
     writeLine(process.stderr, line)
   }, 'warn')
   const processResources = resourcesFor(log)
+  watchSupervisor(process.env, process.platform)
   try {
     process.exitCode = await main(processResources)
   } catch (error: unknown) {
