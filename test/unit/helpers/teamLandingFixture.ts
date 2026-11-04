@@ -13,13 +13,16 @@ import {
   type LandingRecord,
 } from '../../../src/host/team/landingJournal'
 import { createTeamJournal } from '../../../src/host/team/teamJournal'
-import type { TeamLandingPolicy } from '../../../src/host/team/teamLandingEntry'
+import { createEngineTeamPorts } from '../../../src/host/team/teamEnginePorts'
+import type { EngineLandingPorts, TeamLandingPolicy } from '../../../src/host/team/teamLandingEntry'
 import {
   createWindowAuthority,
   createWindowIdentity,
   type WindowIdentity,
 } from '../../../src/host/team/windowIdentity'
 import { HOOK_CONFIG_MAX_BYTES } from '../../../src/shared/constants'
+
+const noLog = (): void => undefined
 
 export function fixtureGit(cwd: string, args: readonly string[], input?: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -242,6 +245,29 @@ export function landingPolicy(
     hints: () => Promise.resolve([]),
     ...overrides,
   }
+}
+
+/**
+The product's merges port over this fixture's folders, as a window builds it: the engine's own
+governed git, its own identity, and only what a surface brings to the landing.
+*/
+export function productLandingPorts(
+  fixture: Pick<LandingFixture, 'root' | 'storage'>,
+  landing?: EngineLandingPorts,
+  runGit: TeamGit = landingRunGit,
+) {
+  return createEngineTeamPorts({
+    repositoryRoot: () => fixture.root,
+    storageRoot: fixture.storage,
+    platform: process.platform,
+    isTrusted: () => true,
+    listModels: () => Promise.reject(new Error('no models here')),
+    startWorker: () => Promise.reject(new Error('no workers here')),
+    now: () => Date.now(),
+    runGit,
+    log: { trace: noLog, info: noLog, warn: noLog, error: noLog },
+    ...(landing !== undefined && { landing }),
+  })
 }
 
 /** What a window hands the product's landing and recovery for this fixture's folders. */

@@ -37,6 +37,23 @@ export const STORED_ENGINE_TEAM = {
   intensity: 'balanced',
 }
 
+/** A team host's ports nobody answers: the settings on, nothing paid, the cards unseen. */
+export function teamHostPortsWithNoPerson() {
+  return {
+    settings: {
+      isTeamOn: () => true,
+      isTeamWorkersOn: () => true,
+      maxWorkers: () => 2,
+      isTrusted: () => true,
+    },
+    paid: { allowKeyTasks: () => Promise.resolve(false) },
+    cards: { show: () => undefined },
+    newId: () => 'id-1',
+    now: () => 0,
+    log: silentLog,
+  }
+}
+
 export interface TeamBindingOptions {
   /** The stored team, or none (a single-model conversation). */
   readonly stored: unknown
@@ -50,21 +67,11 @@ export function makeTeamBinding(options: TeamBindingOptions): TeamHostBinding {
   return new TeamHostBinding({
     ports: {
       state: availabilityState(store),
-      settings: {
-        isTeamOn: () => true,
-        isTeamWorkersOn: () => true,
-        maxWorkers: () => 2,
-        isTrusted: () => true,
-      },
+      ...teamHostPortsWithNoPerson(),
       orchestrator: {
         modelId: () => options.orchestrator.modelId,
         backend: () => options.orchestrator.backend,
       },
-      paid: { allowKeyTasks: () => Promise.resolve(false) },
-      cards: { show: () => undefined },
-      newId: () => 'id-1',
-      now: () => 0,
-      log: silentLog,
       engine: {
         repositoryRoot: () => undefined,
         storageRoot: '',

@@ -5077,6 +5077,26 @@
               },
             },
           })
+          // A landing the person's own save stopped: what changed, and its Undo Merge.
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'tm2',
+              kind: 'teamMerge',
+              status: 'inProgress',
+              teamMerge: {
+                taskId: 't4',
+                roleId: 'engineering',
+                brief: 'Move the docs',
+                branch: 'agents/engineering/t4',
+                filesChanged: 4,
+                affectedFiles: ['docs/usage.md', 'docs/setup.md', 'README.md', 'CHANGELOG.md'],
+                protectedPaths: [],
+                changedDuringLanding: ['docs/setup.md'],
+                review: 'same-model',
+              },
+            },
+          })
           event({
             type: 'itemStarted',
             item: {

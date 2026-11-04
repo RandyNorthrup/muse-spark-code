@@ -5041,6 +5041,9 @@ export const TEAM_JSON_SEGMENTS = ['.muse', 'team.json'] as const
 // M96b: stored snapshot is user-owned; mutable state/copies are run-owned.
 export const EXEC_TEAM_STATE_FILE = 'team.json'
 export const EXEC_TEAM_RUN_PREFIX = 'muse-exec-team-'
+// Beside the person's own data, so what a run left half landed outlives that run's folder.
+export const EXEC_TEAM_LANDING_FOLDER = 'exec-team-landing'
+export const EXEC_TEAM_LANDING_FOLDER_MODE = 0o700
 export const EXEC_TEAM_BOARD_FILE = 'board.json'
 export const EXEC_TEAM_FILE_MODE = 0o600
 // M96b R3: the run's durable clean-up ledger beside the stored snapshot:

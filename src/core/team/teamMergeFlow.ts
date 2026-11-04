@@ -9,6 +9,7 @@
 // other editors' panels drive the same code. Must not import `vscode`.
 
 import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { TeamRoleConfig } from '../../shared/team'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
 import { isProtectedPath } from '../protectedPaths'
@@ -197,6 +198,51 @@ const mergeCard = (
   }
 }
 
+/** A refused landing the card itself must say; `changed` has its own lines and button. */
+function mergeRefusalWords(refusal: TeamMergeRefusal): string | undefined {
+  if (refusal.kind === 'held')
+    return fill(UI_TEXT.teamTrafficNotices.fileHeld, { path: (refusal.paths ?? []).join(', ') })
+  return refusal.kind === 'checks'
+    ? fill(UI_TEXT.teamTrafficNotices.checksFailed, { name: refusal.check ?? '' })
+    : undefined
+}
+
+/**
+Undo Merge on a landing a changed file stopped: what still holds the landed bytes goes back, and a
+file that holds anything else stays and is named. The card stops offering it once it has run.
+*/
+export async function undoMergeLanding(
+  task: TeamTaskRecord,
+  refusal: TeamMergeRefusal | undefined,
+  deps: { readonly merges: TeamMergePort; readonly cards: TeamCardPort },
+  settled: () => void,
+): Promise<void> {
+  if (
+    refusal?.kind !== 'changed' ||
+    refusal.landingId === undefined ||
+    deps.merges.undo === undefined ||
+    task.outcome === undefined
+  )
+    throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
+  const undone = await deps.merges.undo(
+    task.taskId,
+    refusal.landingId,
+    new AbortController().signal,
+  )
+  if (undone.status !== 'undone') throw new Error(UI_TEXT.teamTaskBusy)
+  settled()
+  task.mergePhase = 'idle'
+  const words =
+    undone.kept.length === 0
+      ? UI_TEXT.teamLandingUndone
+      : fill(UI_TEXT.teamTrafficNotices.undoKept, { path: undone.kept.join(', ') })
+  deps.cards.show(task.sessionId, {
+    ...mergeCard(task, task.outcome),
+    status: 'completed',
+    teamDecision: words,
+  })
+}
+
 /** Own review admission and exactly one card waiter through final settlement. */
 export const runMergeFlow = async (
   task: TeamTaskRecord,
@@ -270,7 +316,15 @@ export const runMergeFlow = async (
       return result
     })
     task.mergePhase = merged.status === 'merged' ? 'done' : 'failed'
-    api.cards.show(task.sessionId, { ...card, status: 'completed', teamDecision: chosen })
+    const { refusal } = merged
+    api.cards.show(task.sessionId, {
+      ...card,
+      ...(refusal?.kind === 'changed' && {
+        teamMerge: { ...card.teamMerge, changedDuringLanding: merged.conflicts },
+      }),
+      status: 'completed',
+      teamDecision: (refusal && mergeRefusalWords(refusal)) ?? chosen,
+    })
     return api.answer(
       { task_id: task.taskId, ...merged },
       merged.status === 'merged' ? UI_TEXT.teamWorkerMerged : UI_TEXT.teamMergeRework,

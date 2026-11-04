@@ -4916,6 +4916,12 @@ export const EN = {
       'Git’s lock is held: {path}. Apply later or open a terminal; the extension never removes another process’s lock.',
     changedDuringLanding:
       'Changed during landing: {path}. Undo merge is available only while the landed bytes still match.',
+    fileHeld:
+      'A program is holding {path}, so the landing stopped and put back what it had written. Close the program and land again.',
+    checksFailed: 'Check {name} failed on the merged result, so nothing landed.',
+    landingOpen: 'An earlier landing did not finish: {path}. Recover it before the next one.',
+    landingUnsaved: 'Save or close {path} first: a landing would overwrite its unsaved changes.',
+    undoKept: 'Undone, except {path}: changed after the landing, so kept as it is.',
     unverifiedCheck: 'Unverified check: {command}. No matching command was run by this attempt.',
     journalBroken:
       'The team journal could not be read: {path}. The broken file was kept; review recovery before resuming.',
@@ -8480,6 +8486,7 @@ export const EN = {
   teamNotStaffed: 'Not staffed: the pool is empty.',
   teamOnlyOneModel: 'Only one model is ready: the team applies from a new conversation.',
   teamUndoMerge: 'Undo Merge',
+  teamLandingUndone: 'The landing was undone.',
   teamBranchMoved: 'The branch moved during the task.',
   // {file}: the file whose merge conflicts.
   teamMergeConflicted: '{file} has conflicts.',

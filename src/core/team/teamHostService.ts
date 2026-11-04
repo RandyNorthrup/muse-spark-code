@@ -54,7 +54,7 @@ export interface TeamHostSeams {
 export type TeamWaitingChoice = 'queue' | 'self' | 'raise' | 'cancel'
 
 /** The merge card's two answers. */
-export type TeamMergeDecision = 'merge' | 'discard'
+export type TeamMergeDecision = 'merge' | 'discard' | 'undo'
 
 /**
 The service every surface binds to. The tree is the Agent map's live view
@@ -79,6 +79,9 @@ export interface TeamHostService extends TeamHostSeams {
   readonly setLandingPaused: (isPaused: boolean) => Promise<void>
   /** The last landing refusal for a task in review, if its merge was refused. */
   readonly mergeRefusal?: ((taskId: string) => TeamMergeRefusal | undefined) | undefined
+  /** The merges port's open landings and their Recover, for the Traffic view. */
+  readonly openLandings?: TeamMergePort['openLandings']
+  readonly recoverLandings?: TeamMergePort['recoverLandings']
   /** The ordered merge queue (review waits for landing, head first). */
   readonly mergeQueue?: (() => readonly TeamMergeQueueRow[]) | undefined
   /** The recorded merge-queue transitions backing depth and time-to-merge. */
@@ -332,6 +335,7 @@ export type TeamCardItem =
         readonly roleId: string
         readonly brief: string
         readonly branch: string
+        readonly changedDuringLanding?: readonly string[] | undefined
         readonly filesChanged?: number | undefined
         readonly affectedFiles?: readonly string[] | undefined
         readonly protectedPaths?: readonly string[] | undefined
@@ -366,12 +370,34 @@ export interface TeamMergeOutcome {
 /** A landing refusal keeps its reason: stale, busy, denied and branched travel as
 themselves, with the holder or the deferred branch where there is one. A stale
 refusal offers the rebuild action and a busy one the recheck action; both run by
-landing again. */
+landing again. `changed` is a batch something else touched while it landed: `paths`
+names what, `landingId` is what Undo Merge puts back. `held` is a file the system
+would not let go, with everything already put back. `checks` is a check that failed
+on the merged result, with nothing written. */
 export interface TeamMergeRefusal {
-  readonly kind: 'stale' | 'busy' | 'denied' | 'branched'
+  readonly kind: 'stale' | 'busy' | 'denied' | 'branched' | 'changed' | 'held' | 'checks'
   readonly holder?: unknown
   readonly branch?: string | undefined
   readonly action?: 'rebuild' | 'recheck' | undefined
+  readonly paths?: readonly string[] | undefined
+  readonly landingId?: string | undefined
+  /** The check that failed. */
+  readonly check?: string | undefined
+}
+
+/** An open landing a window left behind, as the Traffic view's recovery row shows it. */
+export interface TeamOpenLanding {
+  readonly id: string
+  readonly windowInstanceId: string
+  readonly paths: readonly string[]
+  /** Git's lock while it stands: the person removes it, and only then can Recover run. */
+  readonly lockPath?: string | undefined
+}
+
+/** What Undo Merge did: `kept` names the files that changed after the landing. */
+export interface TeamLandingUndo {
+  readonly status: 'undone' | 'busy' | 'denied'
+  readonly kept: readonly string[]
 }
 /** One recorded merge-queue transition. The queue is the ordered wait between
 review and landing; depth and time-to-merge are computed from this log. */
@@ -425,6 +451,18 @@ export interface TeamMergePort {
   */
   readonly diffFiles?:
     ((outcome: TeamWorkerOutcome) => Promise<readonly TeamDiffFile[]>) | undefined
+  /** Puts back a landing that `changed` stopped, by M86's rule. */
+  readonly undo?:
+    | ((taskId: string, landingId: string, signal: AbortSignal) => Promise<TeamLandingUndo>)
+    | undefined
+  /** The open landings this repository's windows left, read fresh. */
+  readonly openLandings?: (() => Promise<readonly TeamOpenLanding[]>) | undefined
+  /**
+  Settles them. `isConfirmed` is the person's Recover, which also takes over
+  another window's record; without it this window's own recover, and another's
+  only as the surface's `confirmTakeover` answers. Returns how many closed.
+  */
+  readonly recoverLandings?: ((isConfirmed: boolean) => Promise<number>) | undefined
 }
 
 /** One changed file as whole texts at the task's base and head. */

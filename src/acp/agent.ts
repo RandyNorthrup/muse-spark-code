@@ -3410,6 +3410,8 @@ class AcpSession {
   ): Promise<StopReason> {
     type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
     this.ensureHeld()
+    await this.teamSession?.settleLandings()
+    this.ensureHeld()
     if (this.deps.resources !== undefined) {
       // A rejected reading reaches `respond` below, which reports it once
       // under its own name and carries it to the client as that typed

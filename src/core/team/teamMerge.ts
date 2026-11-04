@@ -73,6 +73,7 @@ const OBJECT_ID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i
 const LOSSY_DECODER = new TextDecoder('utf-8', { fatal: false })
 const NUL = 0
 const LINE_FEED = 0x0a
+const CARRIAGE_RETURN = 0x0d
 const EXECUTABLE_BIT = 0o100
 const PLAIN_FILE_MODE = 0o644
 const EXECUTABLE_MASK = 0o111
@@ -765,6 +766,49 @@ async function readWorktreeFile(root: string, relative: string): Promise<Uint8Ar
   }
 }
 
+/**
+Whether the file on disk is this text in a CRLF checkout: CRLF on every line over a repository that
+keeps LF, which is what Git for Windows' default `core.autocrlf` leaves there. The bytes differ on
+every line and none of it is the person's edit. Mixed endings are not a checkout's: they stay as they
+are and merge as they are, so a line nobody touched never changes.
+*/
+function isCrlfCheckout(
+  onDisk: Uint8Array | undefined,
+  base: Uint8Array | undefined,
+  theirs: Uint8Array | undefined,
+): onDisk is Uint8Array {
+  if (
+    onDisk === undefined ||
+    hasNul(onDisk) ||
+    base?.includes(CARRIAGE_RETURN) === true ||
+    theirs?.includes(CARRIAGE_RETURN) === true
+  )
+    return false
+  let lines = 0
+  for (const [index, byte] of onDisk.entries()) {
+    if (byte === LINE_FEED) {
+      if (onDisk[index - 1] !== CARRIAGE_RETURN) return false
+      lines += 1
+    } else if (byte === CARRIAGE_RETURN && onDisk[index + 1] !== LINE_FEED) return false
+  }
+  return lines > 0
+}
+
+function withCrlf(bytes: Uint8Array): Uint8Array {
+  const lines = bytes.filter((byte) => byte === LINE_FEED).length
+  const written = new Uint8Array(bytes.length + lines)
+  let at = 0
+  for (const byte of bytes) {
+    if (byte === LINE_FEED) {
+      written[at] = CARRIAGE_RETURN
+      at += 1
+    }
+    written[at] = byte
+    at += 1
+  }
+  return written
+}
+
 async function mergeOneFile(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
@@ -775,7 +819,12 @@ async function mergeOneFile(
   const { file, change, baseBytes, theirsBytes } = prepared
   const theirsMode = change.change === 'deleted' ? undefined : change.theirsMode
   await confinedRelative(io, spec.repositoryRoot, file.path, platform)
-  const oursBytes = await readWorktreeFile(spec.repositoryRoot, file.path)
+  const onDisk = await readWorktreeFile(spec.repositoryRoot, file.path)
+  // Merged as the repository keeps the text, handed back in the line endings it stood in.
+  const isCrlf = !file.isBinary && isCrlfCheckout(onDisk, baseBytes, theirsBytes)
+  const oursBytes = isCrlf ? onDisk.filter((byte) => byte !== CARRIAGE_RETURN) : onDisk
+  const inTree = (bytes: Uint8Array | undefined): Uint8Array | undefined =>
+    isCrlf && bytes !== undefined ? withCrlf(bytes) : bytes
   const absolute = path.join(spec.repositoryRoot, file.path)
   const oursStat = await linkOf(absolute)
   const oursMode = platform === 'win32' ? undefined : oursStat?.mode
@@ -813,8 +862,8 @@ async function mergeOneFile(
     undo: [
       {
         path: file.path,
-        before: oursBytes,
-        after,
+        before: onDisk,
+        after: inTree(after),
         beforeMode,
         afterMode: isConflict ? beforeMode : afterMode,
       },
@@ -944,7 +993,7 @@ export interface LandingIntent {
   readonly head: string
   readonly snapshotTree: string
   readonly checkIdentity: string
-  readonly status: 'open' | 'landed' | 'recovered'
+  readonly status: 'open' | 'landed' | 'recovered' | 'changed'
   readonly files: readonly {
     readonly path: string
     readonly before: LandingBlob | null
@@ -968,6 +1017,14 @@ export type LandingOutcome =
       readonly status: 'landed' | 'changed'
       readonly paths: readonly string[]
       readonly intent: LandingIntent
+    }
+  /** A write the system refused (on Windows, a program holding the file): what was written is back. */
+  | {
+      readonly status: 'held'
+      readonly paths: readonly string[]
+      /** Files recovery left as they are, each holding other bytes. */
+      readonly kept: readonly string[]
+      readonly cause: unknown
     }
 
 export interface LandingLock {
@@ -998,7 +1055,7 @@ export interface TeamLandingDeps {
   readonly prepare: (intent: LandingIntent) => Promise<void>
   readonly close: (
     intent: LandingIntent,
-    status: 'landed' | 'recovered',
+    status: 'landed' | 'recovered' | 'changed',
     conflicts: readonly string[],
   ) => Promise<void>
   /** Repeat M77 canonical/protected/ref checks before each conditional mutation. */
@@ -1040,6 +1097,8 @@ export class TeamLanding {
     let lock: LandingLock | null = null
     let canRelease = true
     try {
+      // Nobody is asked to take over while the repository is held: nothing could follow.
+      if ((await this.deps.knownHolder(root)) !== undefined) return { status: 'busy' }
       if (!(await this.deps.authorizeRecovery(intent))) return { status: 'denied' }
       if ((await this.deps.knownHolder(root)) !== undefined) return { status: 'busy' }
       lock = await this.deps.takeLock(root, intent.id)
@@ -1127,7 +1186,18 @@ export class TeamLanding {
       canRelease = false
       const changed = new Set<string>()
       for (const file of files) {
-        if (!(await canWrite()) || !(await this.deps.replace(canonical, file, canWrite))) {
+        let isReplaced: boolean
+        try {
+          isReplaced = (await canWrite()) && (await this.deps.replace(canonical, file, canWrite))
+        } catch (error: unknown) {
+          // This window holds the lock and knows what it wrote, so it puts that back now rather
+          // than leave the repository locked for the person. A recovery that fails too keeps the
+          // lock and the open intent, as a killed window's do, and says why it failed.
+          const kept = await this.deps.recover(intent, canWrite)
+          canRelease = true
+          return { status: 'held', paths: [file.path], kept, cause: error }
+        }
+        if (!isReplaced) {
           changed.add(file.path)
           break
         }
@@ -1140,7 +1210,8 @@ export class TeamLanding {
         if (!isSameBlob(after.blobs.get(path), admission.final.blobs.get(path))) changed.add(path)
       }
       const conflicts = [...changed]
-      await this.deps.close(intent, 'landed', conflicts)
+      // A batch something else touched did not land, whatever reached the tree.
+      await this.deps.close(intent, conflicts.length === 0 ? 'landed' : 'changed', conflicts)
       canRelease = true
       return { status: conflicts.length === 0 ? 'landed' : 'changed', paths: conflicts, intent }
     } finally {

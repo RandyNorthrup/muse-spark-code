@@ -29,7 +29,10 @@ import { AgentWorktreeSession } from '../../core/bestOfN/agentWorktreeSession'
 import { builtinRoles } from '../../core/team/builtInRoles'
 import { validateWorkerSettings, type TeamSettingCapabilities } from '../../core/team/modelSettings'
 import { isSameTeamModel } from '../../core/team/sameModel'
-import { applyTeamMerge, planTeamMerge, type TeamMergeSpec } from '../../core/team/teamMerge'
+import { planTeamMerge, type TeamMergeSpec } from '../../core/team/teamMerge'
+import { canonicalPath } from '../canonicalPath'
+import type { UiText } from '../../shared/l10n/en'
+import type { createEngineLanding, EngineLandingPorts } from './teamLandingEntry'
 import { removeTeamWorkspace } from '../../core/team/teamWorkspaces'
 import {
   beginTaskCopy,
@@ -106,6 +109,10 @@ export interface EngineTeamPortsDeps {
   readonly runGit?: TeamGit | undefined
   readonly now: () => number
   readonly log: CoreLogger
+  /** What this surface brings to the checked landing (M96c). */
+  readonly landing?: EngineLandingPorts | undefined
+  /** The installed table, for the landing's own bundle. */
+  readonly ui?: { readonly table: UiText; readonly locale: string } | undefined
 }
 
 /** What dist/team.js takes from an editor: the service's ports and the engine's. */
@@ -438,6 +445,26 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     isLimited: (agent: TeamAgentRef) => (limitedUntil.get(agent.agentId) ?? 0) > deps.now(),
   }
 
+  // A workspace reached by another spelling (a short name, a junction, a link above it) is the
+  // same workspace: it is read as the file system resolves it before anything compares it.
+  const canonicalRepository = async (): Promise<string> =>
+    await canonicalPath(requireRepository(deps))
+  let landing: Promise<ReturnType<typeof createEngineLanding>> | undefined
+  const landingFor = () => {
+    landing ??= (async () => {
+      const { createEngineLanding } = await import('./teamLandingEntry')
+      return createEngineLanding(deps.ui ?? { table: UI_TEXT, locale: 'en' }, {
+        root: canonicalRepository,
+        storage,
+        platform: deps.platform,
+        isTrusted: deps.isTrusted,
+        runGit,
+        now: deps.now,
+        ports: deps.landing,
+      })
+    })()
+    return landing
+  }
   const mergeSpec = async (task: {
     readonly role: TeamRoleConfig
     readonly outcome: TeamWorkerOutcome
@@ -460,7 +487,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     ) {
       throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
     }
-    const repositoryRoot = requireRepository(deps)
+    const repositoryRoot = await canonicalRepository()
     const builtin = builtinRoles().find((role) => role.id === task.role.role)
     let actual: string | undefined
     try {
@@ -509,12 +536,15 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       signal.throwIfAborted()
       const { spec, repositoryRoot, outcome } = await mergeSpec(task)
       signal.throwIfAborted()
-      const result = await applyTeamMerge(
+      // The planner's refusals first, as they were: a moved ref, an unsafe path, a link escape.
+      await planTeamMerge(
         { runGit, realPath: (candidate) => WORKER_NATIVE_IO.realPath(candidate) },
         spec,
-        // The merge card listed the protected paths; the user's Merge approved them.
-        { platform: deps.platform, allowProtected: options.allowProtected },
+        deps.platform,
       )
+      const checked = await landingFor()
+      // The merge card listed the protected paths; the user's Merge approved them.
+      const result = await checked.land(task, signal, options, spec.writePaths)
       if (result.status === 'merged') {
         await removeTeamWorkspace(
           runGit,
@@ -524,11 +554,19 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           outcome.agentsRef,
         )
       }
-      return {
-        status: result.status,
-        written: result.written,
-        conflicts: result.conflicts.map((conflict) => conflict.path),
-      }
+      return result
+    },
+    undo: async (taskId, landingId, signal) => {
+      const checked = await landingFor()
+      return await checked.undo(taskId, landingId, signal)
+    },
+    openLandings: async () => {
+      const checked = await landingFor()
+      return await checked.open()
+    },
+    recoverLandings: async (isConfirmed) => {
+      const checked = await landingFor()
+      return await checked.recover(isConfirmed, new AbortController().signal)
     },
     diff: async (outcome) => {
       if (

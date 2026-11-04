@@ -1703,13 +1703,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/team/teamHostEntry.ts',
-        symbol: 'landTeamTask',
-        side: ['acp', 'vscode'],
-      },
-      {
-        importer: 'src/host/team/teamHostEntry.ts',
-        symbol: 'recoverOpenLandings',
+        importer: 'src/host/team/teamEnginePorts.ts',
+        symbol: 'landingFor',
         side: ['acp', 'vscode'],
       },
     ],
@@ -1727,6 +1722,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       { importer: 'src/core/team/teamHost.ts', symbol: 'beginMerge', side: ['acp', 'vscode'] },
+      {
+        importer: 'src/core/team/teamHost.ts',
+        symbol: 'createTeamHostService',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
