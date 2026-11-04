@@ -136,13 +136,13 @@ each sample its own browser, on this PC, in alternating blocks. "Before" is `src
 
 Before and after sit on top of each other. Under the throttle the **quiet** control reaches past 100 ms with nothing to render, so that condition says what
 the metric does on a slow machine and little about the product. A first try at 2 pinned cores with 3 loops was thrown away: it starved the whole rig (Chrome's cold
-start 59 s, the sample past its own 180 s) and proved nothing. No condition here reached 277 ms: I cannot reproduce the hosted number, and there is no Linux Chrome sample.
+start 59 s, the sample past its own 180 s) and proved nothing. No condition here reached 277 ms: I cannot reproduce the hosted number. This first said there was no Linux Chrome sample to be had; WSL had Playwright's Chromium all along and I had not looked. CC-STOPSHAPE below has those samples.
 
 **The hosted history says the same.** The coordinator's logs hold an earlier miss of the same bound by the same clicker, a day before this commit existed: run
 41516831678, macOS shard 4, 2026-11-02, `worst-case search with 20000 repeated rows keeps Stop below 100 ms`, 158.7 ms. `m103-u.md` also carries
 `M103U-STOP-LATENCY` as an open residual on this bound since 2026-10-06.
 
-**The test is not changed; that call is the coordinator's.** What I would propose, the 100 ms untouched:
+**The test was left for the coordinator's call, made below.** What I proposed, the 100 ms untouched:
 
 1. **Best of three in one case.** The same payload three times in the one page; the smallest longest-gap must be under 100 ms. A stall the product causes is there every
    time, and `m103-u.md`'s drill (a 150 ms block in rendering, read at 166.6 ms) would still fail all three; a runner's one hiccup would not. Cheapest, and still wall time.
@@ -151,6 +151,38 @@ start 59 s, the sample past its own 180 s) and proved nothing. No condition here
 3. **A control in the same page** (the quiet gap above) that voids a sample when the machine alone misses. Weakest: a void can hide a real miss.
 
 I would take 1, and add 2 only if 1 still flakes. Neither has been built or tried.
+
+## CC-STOPSHAPE: the median of five, the coordinator's call on hosted red B
+
+`100,000 lines remain virtual and queued Stop input responds below 100 ms` now takes five samples in one page, and **the median must be under 100 ms, the bound unchanged**. A failure prints all five. The coordinator's reason, over the best of three I proposed: that one passes when two of three samples stall, and a median fails anything that repeats and still ignores one hiccup. Each sample's lines differ, `G1 X1` to `G1 X5`, because the surface prepares again only when the content changes, and a row of that sample's own line is what says it is on the page. The small warming payload still comes first. Every sample still checks the rows stay virtual, the 2,000,000 px height and that its own Stop clicks landed. The receipt now carries `samples`.
+
+**Drills.** The real Stop handler (`src/webview/maker/StopChip.tsx`) spends 150 ms on the page's own thread at the first click of K samples, written back with sha256 compared (`799e3091382d8150`). The third row is mine, past the brief: the other two would also pass a best-of rule, and this one is what tells a median from it.
+
+| Stalled samples | Exit | The five samples, ms              | Median |
+| --------------- | ---- | --------------------------------- | ------ |
+| All five        | 1    | 159.9, 158.8, 158.7, 161.9, 158.5 | 158.8  |
+| Three of five   | 1    | 159.9, 158.6, 158.6, 19.6, 21.4   | 158.6  |
+| One             | 0    | 160.0, 22.3, 21.1, 21.5, 20.3     | 21.5   |
+| None, restored  | 0    | 21.6, 21.8, 21.6, 23.4, 21.0      | 21.6   |
+
+Both reds printed all five in the failure's own message: `the five samples, in ms: ...: expected 158.8... to be less than 100`.
+
+**The whole file on Windows, the final code:** exit 0, 17 passed, this case 2,494 ms, samples 21.0, 22.8, 20.1, 24.3, 20.0, median 21.0.
+
+**Does it fit the case's limit, which is not raised?** Most of the time here; twice not.
+
+| Where, and the limit                                                                         | The case   | Duration, ms                                                        |
+| -------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| Windows, 15 s, alone                                                                         | one sample | 1,056, 1,076, 1,564                                                 |
+| Windows, 15 s, alone                                                                         | five       | 2,923, 3,440, 4,007, then 2,765 and 2,494 in later runs             |
+| Linux, real Chromium 153 in WSL, 5 s, alone, PC quiet                                        | one sample | 1,347, 1,425, 1,994                                                 |
+| The same, another lane's build holding the PC near 100%                                      | one sample | 4,241, 4,827                                                        |
+| The same, PC quiet                                                                           | five       | 2,671, 2,692, 3,186, 3,207                                          |
+| The same, under that build                                                                   | five       | **5,026: red, `Test timed out in 5000ms`**                          |
+| Linux, the whole file, 5 s, under moderate load                                              | five       | **5,022: red, the same**, the file's other cases about twice normal |
+| Linux, the whole file, a wider limit on a throwaway command line, only to read the true time | five       | 2,482, 2,648, 2,670, 3,190                                          |
+
+A sample costs about 0.3 s there (205 to 328 ms, one first sample at 804); the page and the warming payload about 1.1 s. The samples on Linux, all eight passing runs: 17.4 to 25.3 ms, nowhere near 277. **Hosted, by arithmetic and not measured:** this case's one-sample time in the coordinator's logs is 1,484 to 2,217 ms on Ubuntu, 1,370 to 2,940 on macOS and 1,419 to 2,087 on Windows, and five takes about 1.7 times one here, so about 3.8 s on Ubuntu and **up to about 5 s on macOS, which is the limit**. On a loaded machine this case can now fail by time where one sample would have squeaked through at 4.8 s, and it would read as a timeout rather than a latency miss. If hosted shows that, the shape that raises nothing is the five samples in a `beforeAll` of their own, with the file's hook limit (10 s on POSIX, 30 s on Windows) and the case asserting the median; the file already moves cold starts into hooks that way. Not built: that call is the coordinator's.
 
 ## A correction to `cc-small3.md`
 
@@ -239,9 +271,9 @@ One after another on `49471a4ea1`, status lines 0, Node 22.19.0 (CI's major), no
 
 ## Not proven, and why
 
-- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B is not fixed:** it can go red again on any shared runner until the coordinator picks a shape.
+- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B has its shape now (CC-STOPSHAPE below), and a new way to go red:** the case's own 5 s limit.
 - **The hosted Windows landing's real duration.** Only "over 3 s" is known. The case's 15 s limit still applies, and a landing past it fails by name.
-- **B on Linux in real Chrome,** and the 277 ms itself: never reproduced.
+- **The 277 ms itself:** never reproduced, on Windows or on Linux Chromium. **The case on hosted macOS and Linux inside its 5 s:** arithmetic only, until hosted CI runs it.
 - **The two old unread reds** above.
 - **The 26-minute figure:** arithmetic from 101 and 1,001 files, never run at 11,230, and about this base; CC-WINLAND2's fix was not run here.
 - **`--mcp-always-load` reaching the Model API host in a real run:** read and type-checked. A run that declares tools needs a model call, and none was made.
