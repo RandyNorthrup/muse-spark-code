@@ -569,8 +569,8 @@ it(`${ENGINE}: storage-denied reload retains static Stop before delayed replay`,
   await p.getByRole('button', { name: 'Retry', exact: true }).waitFor()
   // The first document's own ask is answered, so the next one the host sees is the reloaded
   // document's, sent the moment it is listening. That ask is this case's clock. It used to read the
-  // page when `load` returned, and found no module run yet on three hosted runs (41516831678,
-  // 41578891657, 41761798108), with 1,000 ms before a reply it wanted not to have come.
+  // page when `load` returned, and found no module run yet on two hosted runs (41578891657,
+  // 41761798108), with 1,000 ms before a reply it wanted not to have come.
   await p.waitForFunction(() => globalThis.readyAnswered === true)
   rig.hostFrames = [state()]
   rig.hostApprovals = [new MakerApproval(frame.request, () => true)]
