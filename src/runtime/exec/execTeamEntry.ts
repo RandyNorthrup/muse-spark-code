@@ -2,7 +2,7 @@
 import { presetFromRead } from '../../host/team/providerPreset'
 import { createHash, randomUUID } from 'node:crypto'
 import { availableParallelism, tmpdir } from 'node:os'
-import { mkdir, mkdtemp, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import type {
   TeamHostSeams,
@@ -12,6 +12,7 @@ import type {
   TeamWorkerOutcome,
 } from '../../core/team/teamHostService'
 import type { EngineTeamPortsDeps } from '../../host/team/teamEnginePorts'
+import { teamBoardFile } from '../../core/team/teamBoardFile'
 import type { TeamGit } from '../../core/team/teamGit'
 import type { TeamToolResult } from '../../core/team/teamSeams'
 import { isProtectedPath } from '../../core/protectedPaths'
@@ -26,7 +27,6 @@ import {
   EXEC_TEAM_LANDING_FOLDER_MODE,
   EXEC_TEAM_RUN_PREFIX,
   EXEC_TEAM_BOARD_FILE,
-  EXEC_TEAM_FILE_MODE,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, setUiText } from '../../shared/l10n/text'
@@ -191,7 +191,10 @@ export async function createExecTeam(
   let folder: string | undefined
   let modelId = ''
   let isClosed = false
-  let writes = Promise.resolve()
+  const board = teamBoardFile(() => {
+    if (folder === undefined) throw new Error(UI_TEXT.execIncomplete)
+    return path.join(folder, EXEC_TEAM_BOARD_FILE)
+  })
   let landing = Promise.resolve()
   const assertOpen = (): void => {
     deps.signal.throwIfAborted()
@@ -216,17 +219,7 @@ export async function createExecTeam(
     get: (key) => stateData[key],
     update: (key, value) => {
       stateData[key] = value
-      const snapshot = redactSecrets(JSON.stringify(stateData), deps.secretLiterals())
-      const previous = writes
-      writes = (async () => {
-        await previous
-        if (folder === undefined) throw new Error(UI_TEXT.execIncomplete)
-        const target = path.join(folder, EXEC_TEAM_BOARD_FILE)
-        const temporary = `${target}.new`
-        await writeFile(temporary, snapshot, { mode: EXEC_TEAM_FILE_MODE })
-        await rename(temporary, target)
-      })()
-      return writes
+      return board.write(redactSecrets(JSON.stringify(stateData), deps.secretLiterals()))
     },
   }
   const track = <T>(pending: Promise<T>, set: Set<Promise<unknown>>): Promise<T> => {
@@ -251,7 +244,7 @@ export async function createExecTeam(
     } finally {
       await Promise.allSettled([...running, ...answers])
       try {
-        await writes
+        await board.settled()
       } finally {
         try {
           await discardCopies?.()
