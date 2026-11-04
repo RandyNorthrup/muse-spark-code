@@ -18282,7 +18282,9 @@ kind `changed`, words in every table, **Undo Merge** on the merge card and in
 Traffic. A held file rolls back at once and releases the lock, refusal kind `held`;
 if the roll-back is refused too the record and lock stay for Recover. A workspace
 reached by another spelling is the same workspace. The person's check commands run
-over the staging copy in a governed slot, refusal kind `checks`. MHP 1.6.0 re-frozen
+over the staging copy, refusal kind `checks`: in a governed slot on Windows, and on
+Linux and macOS, where no container proves a command's end, in a folder of the
+landing's own, used once, so its setup runs every time. MHP 1.6.0 re-frozen
 for `decideTeamMerge`'s `undo` and the card's `changedDuringLanding`; nothing of it
 has shipped. The merge reads a CRLF checkout over a repository that keeps LF as the
 text it is and writes it back in CRLF: every team merge on Git for Windows' default

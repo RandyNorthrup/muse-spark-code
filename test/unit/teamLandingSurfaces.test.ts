@@ -1,7 +1,7 @@
 // A team's landing on the other surfaces (CC-WINLAND): a headless run and an ACP session reach the
 // same checked landing, each with its own journal folder and its own way of asking, and the
 // engine's governed git carries it. A real lander killed mid-landing, a real ACP team entry, a real
-// exec team, real repositories, the contained launcher as the agent process configures it.
+// exec team, real repositories, the governor and its contained launcher as the runtime configures them.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
@@ -11,7 +11,6 @@ import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createAcpTeam } from '../../src/acp/acpTeamEntry'
 import type { AcpTeamPort } from '../../src/acp/teamPort'
-import { configureResources } from '../../src/core/resources/admission'
 import { applyTeamMerge } from '../../src/core/team/teamMerge'
 import { processTeamGit } from '../../src/core/team/workers/workerOpsEntry'
 import { workspaceKey } from '../../src/runtime/dataFolder'
@@ -20,7 +19,6 @@ import {
   type ExecTeam,
   type ExecTeamDeps,
 } from '../../src/runtime/exec/execTeamEntry'
-import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { storedTeamSnapshotFile } from '../../src/runtime/teamSnapshotFile'
 import {
   ACP_SESSIONS_SUBFOLDER,
@@ -33,6 +31,7 @@ import {
 import { Usd } from '../../src/shared/usd'
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
+import { configureRuntimeGovernor, type RuntimeGovernor } from './helpers/resources/runtimeGovernor'
 import { silentCoreLog } from './helpers/memoryLogs'
 import {
   buildLander,
@@ -54,7 +53,9 @@ const BATCH = ['a.txt', 'b.txt', 'c.txt', 'd.txt']
 const LEAD = 'probe-custom/custom-model'
 const WORKER = 'probe-offable/offable-model'
 
-const shared: { lander?: LanderBuild; dispose?: () => void; folders: string[] } = { folders: [] }
+const shared: { lander?: LanderBuild; governor?: RuntimeGovernor; folders: string[] } = {
+  folders: [],
+}
 
 async function scratch(prefix: string): Promise<string> {
   const folder = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
@@ -64,20 +65,14 @@ async function scratch(prefix: string): Promise<string> {
 
 beforeAll(async () => {
   shared.lander = await buildLander()
-  const jobs = await scratch('muse-landing-jobs-')
-  // As the agent process configures it: the engine's git is governed and contained.
-  shared.dispose = configureResources({
-    inspect: () => ({}),
-    onError: () => undefined,
-    ...(process.platform === 'win32' && {
-      windowsJob: runtimeWindowsJob(jobs, path.resolve('.')),
-    }),
-  })
+  // The engine's git is governed and contained: the governor as the runtime process configures it,
+  // the created-path helper and the Windows job helpers with it.
+  shared.governor = await configureRuntimeGovernor('muse-landing-jobs-')
 }, 180_000)
 
 afterAll(async () => {
   await shared.lander?.dispose()
-  shared.dispose?.()
+  await shared.governor?.dispose()
   for (const folder of shared.folders.splice(0))
     await rm(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 }, 120_000)
@@ -439,6 +434,23 @@ describe('the governed git', () => {
       { allowProtected: false },
     )
   }
+
+  it("still reads git's own answer: a ref that is really gone is a moved ref", async () => {
+    const fixture = await fixtureFor('task-gone', BATCH)
+    const git = processTeamGit(process.platform)
+    await expect(git(['rev-parse', '--verify', 'refs/nope'], fixture.root)).rejects.toMatchObject({
+      name: 'TeamGitError',
+      exitCode: 128,
+    })
+    await fixtureGit(fixture.root, ['update-ref', '-d', fixture.agentsRef])
+    const task = landingTask(fixture)
+    await expect(
+      productLandingPorts(fixture, undefined, git).merges.plan({
+        ...task,
+        outcome: { ...task.outcome, folder: await realpath(fixture.workerCopy) },
+      }),
+    ).rejects.toThrow('moved ref')
+  }, 120_000)
 
   it('carries a landing through its contained launcher', async () => {
     const fixture = await fixtureFor('task-governed', BATCH)

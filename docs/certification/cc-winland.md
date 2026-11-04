@@ -82,15 +82,19 @@ leaves the record open, and a landing that needs the answer asks again. A lock s
 standing asks nothing, so a later turn can settle it. It asks the first attached session,
 which need not be the one prompting.
 
-**3.2 The check commands (fault 6).** `ProcessTeamPorts.runLandingChecks` runs each through
-the governed check slots over the staging copy; the first non-zero exit refuses with kind
-`checks`, naming the check. `teamWorkerChecks` is POSIX-only, so `teamLandingChecks.test.ts`
-is the first proof of those slots on Windows: the real governor window, the real job, a real
-snapshot of the merged copy, and a script that logs where it ran and what it read.
+**3.2 The check commands (fault 6).** `ProcessTeamPorts.runLandingChecks` runs each over the
+staging copy; the first non-zero exit refuses with kind `checks`, naming the check. On Windows it
+goes through the governed check slots, on the job's proof. On Linux and macOS it takes a folder of
+the landing's own under the same governor (§10): as this section first stood, every landing with check
+commands refused there. `teamWorkerChecks` is POSIX-only, so `teamLandingChecks.test.ts` is the
+first proof of those slots on Windows: the real governor window, the real job, a real snapshot of
+the merged copy, and a script that logs where it ran and what it read.
 
-**3.3 The governed git.** `teamLandingSurfaces.test.ts` lands through `processTeamGit` under
-`configureResources` with the real Windows job, as the agent process configures it. That
-closes what the earlier suites left open (they inject plain git).
+**3.3 The governed git.** `teamLandingSurfaces.test.ts` lands through `processTeamGit` under the
+governor as the runtime process configures it (`configureRuntimeGovernor`). That closes what the
+earlier suites left open (they inject plain git). This section first said it was `configureResources`
+with the Windows job, "as the agent process configures it". That was wrong: the runtime also passes
+the created-path helper, and without it no governed launch starts on POSIX (§10).
 
 **3.4 One red I could not explain.** On one run of `teamLandingSurfaces`, the CRLF case failed
 with `TeamGitError: git --no-replace-objects exited with code 1:` and empty stderr, from
@@ -101,8 +105,8 @@ settled.** `processTeamGit` turns any failure without a numeric code into exit 1
 exit, a child killed with a null code and a fork stop or launch refusal all read the same
 (inferred from the code; the logs do not show which). A landing that meets it stops safely,
 per M96c: the record stays open under its lock for Recover. If hosted CI shows it, that runner's
-catch is the place to look. `isGovernedRefusal` exists and the runner still checks a narrower
-list; I left that alone, since nothing here shows it was the cause.
+catch is the place to look. CC-WINLAND2 narrowed that catch (§10) for a cause it could show, so if
+this comes back it comes back in its real type and words. It has not come back in any run since.
 
 ## 4. A real crash, on Windows
 
@@ -163,6 +167,24 @@ an untouched line is never rewritten. Binary files never convert.
    is proved (W11), the VS Code wiring is not, here. The packed product's run is the proof.
 8. **A window killed mid-landing with no lock left**, as in exec, relies on the person having
    removed it. The extension never removes an `index.lock` it did not take.
+9. **On Linux and macOS a landing's setup command runs every time.** Its folder is used once, so it
+   has no install cache. Windows keeps the shared slots' cache.
+10. **A one-use folder gives its check permit back with no proof.** The group is signalled at
+    retirement, so what is unaccounted is only a process that left the group with `setsid`. Holding
+    the permit instead would stall the next landing for good. M96c's rule stands for everything else.
+11. **Worker `run_checks` is still refused on Linux and macOS,** as `rlf-teamworkers3.md` §7.1 records
+    for macOS. It is wider than that record says: **a Linux scope does not prove it either.** Real
+    Linux with a delegated scope, systemd 262, `checkProcessOver`: `sh -c 'sleep 0.3'` proved 0 of 10,
+    `sh -c 'sleep 1; echo done'` 0 of 1, `git --version` 30 of 30 on one run and 1 of 2 on another,
+    with `container: linuxScope` in the journal and `notOwned` on the unproved ones. `--collect` removes
+    the scope as its last process ends, and the code reads a missing `cgroup.events` as no proof. The
+    decision is the lead's: drop `--collect`, or read a cgroup that is gone as empty (the kernel will
+    not remove a populated one), or keep the rule and say so.
+12. **On POSIX each landing's check leaves its launches `uncertain` in the team journal,** about a
+    dozen a check. They are unpruned, and the next window scans them at start in one pass.
+13. **`mergeSpec` still reads any real git exit on the ref as absent,** as its comment says, so a
+    repository git cannot read (exit 128 for another reason) says "moved ref". A launch that never ran
+    no longer does.
 
 ## 6. What hosted CI must prove
 
@@ -170,9 +192,13 @@ Windows, macOS and Linux on the joined build: `teamLandingProduct`, `teamLanding
 `teamLandingChecks`, `teamLandingKilled`, `teamLandingPause`, `teamHostRealParts`,
 `acpTeamSession`. Only the held-file and short-name cases are Windows-only. The real crash
 and the CRLF landing were run only here. M96c's three-platform box stays open until a hosted run
-on the joined build is green. On a POSIX runner the CRLF cases are the same code over the same
-bytes, set by the fixture's own `core.autocrlf`; the staging clone there does not inherit it, and
-needs not to, since the copy never converts.
+on the joined build is green.
+
+**A correction.** This section first said that on a POSIX runner these cases are "the same code over
+the same bytes". For the CRLF merge that holds: the fixture sets its own `core.autocrlf`, and the copy
+never converts. For the rest it was wrong, and hosted run 41794406176 showed it: a governed launch
+needs the created-path helper there and not on Windows, and a landing's checks take another path. A
+Windows pass says nothing about either. §10 says what each system has proved.
 
 ## 7. Red/green drills (`temp/drillsw.mjs`, narrowed to the guarding cases, `--maxWorkers=4`)
 
@@ -239,8 +265,145 @@ Budgets, none raised (`npm run build`, the bundle check inside it, exit 0): `dis
 
 ## 9. Commits
 
+CC-WINLAND's first round, as below; CC-WINLAND2's are in §10.
+
 `f572397f23` → `3b19d8bb9c` (the checked landing, recovery at start, the refusal kinds, Undo Merge,
 the held file, the spelling, the check commands, PLAN's sentence, words) → `10c579c724` (settles
 first, stops before writing, the check commands in a real slot) → `ef3ffadfba` (the CRLF checkout,
 the ACP turn, the surfaces suite) → `f24f37bfd0` (what typecheck and duplication asked of the
 suites) → the commit carrying this record, the card's harness scene and the index line.
+
+## 10. CC-WINLAND2: hosted Linux and macOS (2026-11-04)
+
+Hosted run 41794406176 on `45edc0c346` (`cc/winland` merged with `cc/small3`) was red on Linux and
+macOS and green on Windows for these two suites. **The merge plays no part:** all six reproduced on
+real Linux at `8942620fe5`, this branch alone, exit 1, the same words. How: a throwaway shallow
+checkout in WSL's own disk (Arch, Linux 6.18, Node 22.23.4 as CI's, `npm ci`, its own build, removed
+after), run two ways: with the distro's systemd user scope, and with `XDG_RUNTIME_DIR` and the bus
+unset, so no scope, as a hosted runner has it (`container: processGroup` in the journal; measured).
+
+| Hosted failure                                                   | Cause                                                                                                                                                                                                                                                                                                                                                          | Whose                                            | Evidence                                                                                                               |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `teamLandingChecks`, both: `The earlier attempt has not stopped` | The shared slots give a folder back only on a container's proof. A process group proves nothing, and `checkProcessOver` says so for every git call of a slot's preparation. **Every landing with check commands refused, on macOS and on Linux, in those words, whatever the check would have said.**                                                          | **Product, from this lane's wiring**             | L1, L2; `rlf-teamworkers3.md` §7.1 had measured it for `run_checks` on macOS                                           |
+| `the governed git`, both: `refused a moved ref ... to (absent)`  | Under it, the test's governor had no created-path helper, so the launch threw `NativeHelperError`: "The native helper muse-created is missing...". Then `processTeamGit` turned that into `TeamGitError` exit 1 with empty stderr, and `mergeSpec` reads a TeamGitError on the ref as absent. **A swallowed read failure, not a view of `.git` that differs.** | **Test** (the rig) **and product** (the swallow) | Printed on Linux: raw launch `NativeHelperError`, through `processTeamGit` `git rev-parse exited with code 1:`; L4, L5 |
+| `a headless run`: `[ 'open' ]` for `[ 'recovered' ]`             | The same launch failure, in recovery's first git call, logged and survived by design. The folder and repository key are computed and read alike: green once the governor is right.                                                                                                                                                                             | **Test**                                         | L5                                                                                                                     |
+| `an ACP session`: `[]` for `[ [ 'Recover', 'Keep' ] ]`           | The same. ACP passes no `runGit`, so it uses the governed git. Recovery found the record's folder; it never got as far as asking.                                                                                                                                                                                                                              | **Test**                                         | L5                                                                                                                     |
+
+The product passes the helper: `src/runtime/resources/load.ts` and `src/extension.ts` configure it, and
+`execTeamSweep` has always used `configureRuntimeGovernor`. My hand-made `configureResources` was the
+fault, and `processTeamGit` is why it read as something else. Exec and ACP recovery in a broken
+installation now log the helper's sentence instead of "git exited with code 1".
+
+**The fixes.**
+
+1. `teamProcessWorkers.ts`: on POSIX a landing's checks take `landing-checks/<uuid>`, one folder, used
+   for this landing and removed. Nothing is reused, so nothing needs proving, and the verdict is the exit
+   code. It still waits for the governor's check capacity, runs through the team's lifetime, snapshots the
+   merged copy into a clone, and runs setup first. Windows keeps the shared slots. Selected by platform,
+   not by asking a container, because a Linux scope's answer changes from one command to the next (§5
+   item 11). M96c's rule is untouched for worker `run_checks`.
+2. `workerOps.ts`: only git's own exit is a `TeamGitError`. A helper that is missing, a launch refused, a
+   child stopped before it exited keep their own type and words. Callers read a TeamGitError as an answer:
+   `teamWorkspaces.ts` reads exit 1 as "it differs", so a launch that never ran could read as that too.
+   Guard: `teamGitLauncher.test.ts`, on every system, with no skip.
+3. `teamLandingSurfaces.test.ts` uses `configureRuntimeGovernor`. `teamLandingChecks.test.ts` no longer
+   reads a landing's folder after its removal. No case is skipped on POSIX.
+
+**Also found: a landing cost four git processes per file in the tree.** Not in the hosted red, and not
+POSIX's. `StagingCopy.snapshot` hashed each file in its own process, four snapshots a landing, two of
+them under git's lock. It never showed because the suites' trees hold a few files. Measured on one file's
+landing (`temp/wsl/zzcost.test.ts`, not committed, plain git, so no containment cost in these):
+
+| Tree        | Before: processes | Before: Windows | Before: Linux | Now: processes | Now: Windows | Now: Linux |
+| ----------- | ----------------- | --------------- | ------------- | -------------- | ------------ | ---------- |
+| 50 files    | 289               | 11.6 s          | 0.8 s         | 93             | 2.0 s        | 0.3 s      |
+| 500 files   | 2,089             | 71.3 s          | 4.2 s         | 93             | 9.4 s        | 0.5 s      |
+| 2,000 files | 8,089             | not run         | 17.2 s        | 93             | 16.8 s       | 1.1 s      |
+
+This lane's wiring would have brought that to every real landing, so it is fixed:
+`hash-object --no-filters --stdin-paths`, raw bytes as before, with one-at-a-time as the fallback for a file
+that goes away or a name the list cannot carry. Guard: `teamLandingSnapshot.test.ts`, which counts
+processes and reads no clock.
+
+**In the same run, not in this brief, and for whoever holds them.** Both are in `acpTeamSession`:
+
+- `says a card that failed for real...`, on all three systems, is `cc/small3`'s case meeting this lane. It
+  makes a landing fail by writing `.git/index.lock`. In the checked landing a lock with no record is a known
+  holder and goes to a landing branch (acceptance 22), which is a refusal, not a failure, so that sentence
+  never comes. The product is right and the case needs another way to fail for real. (Read from the code;
+  I did not run it on the merge.)
+- `lands the change on the editor's approval`, hosted Windows only, polls for at most 3 s over a real
+  landing. Here that case took 3.4 s in all before the snapshot fix. After it, on this PC under the suites' load, 5.5 s in all, so the snapshot was not its main cost. I did not raise the
+  bound. An event-driven wait would make it independent of scheduling, if it is still red on the next run.
+
+**What each system has proved.**
+
+- **Linux, real, not hosted.** WSL's Arch as above, at `1aeb8ac571`, exit 0 with a scope and exit 0 with
+  none: `teamGitLauncher`, `teamLandingSnapshot`, `teamLandingChecks`, `teamLandingSurfaces`,
+  `teamLandingProduct`, `teamLandingKilled`, `teamLandingPause`, `teamHostRealParts`, `teamEnginePorts`,
+  `teamMergePlan`, `teamProcessWorkers`, `teamWorkerChecks`, `teamProcessLifetime`, `execTeamSweep`,
+  `execTeamLedger`, `execTeamFlags`, `teamAvailability`, `acpTeamSession`, `teamCheckSlotsGoverned`: 19 files,
+  156 passed, 9 skipped each way (the skips: the held-file cases, Windows-only, and worker cases that need
+  a `muse` this rig does not have). That includes a real SIGKILL through the engine's port in two spellings,
+  and the built bundles' run with a real kill and the CRLF landing, the same ten lines as §4. Its own
+  production build at `1aeb8ac571`: exit 0, budgets as on Windows. WSL is not a hosted runner, and the distro's
+  systemd scope is not what a runner has; the no-scope run is the nearer of the two.
+- **macOS: nothing run by me.** It takes the same paths as Linux with no scope (a process group, and the
+  created-path helper from `native/darwin/build.sh`, which the hosted test job builds), and the hosted logs
+  show the same failures, which is why I expect the same cure. That is a reading, not a proof. To run it on
+  the Mac mini, on this branch: `bash native/darwin/build.sh`, then
+  `node node_modules/vitest/vitest.mjs run --maxWorkers=4 test/unit/teamGitLauncher.test.ts test/unit/teamLandingSnapshot.test.ts test/unit/teamLandingChecks.test.ts test/unit/teamLandingSurfaces.test.ts test/unit/teamLandingProduct.test.ts`.
+- **Windows.** This PC, on the final code: below. The job proves, so landing checks stay in the shared slots.
+- **Hosted, any system: nothing yet.** The next run on the joined build is the proof for all three.
+
+**Drills, each restored byte-exact (sha256 compared), each exit 1.** Linux, no scope, `temp/wsl/drills.mjs`:
+
+| #   | Broken on purpose                                       | Red in                                 | What it said                                               |
+| --- | ------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| L1  | a landing takes the shared slots on POSIX               | checks, both                           | `The earlier attempt has not stopped`, the hosted sentence |
+| L2  | a landing's own folder still asks for the proof         | checks, both                           | the same                                                   |
+| L3  | a landing's own folder is left behind                   | checks, checks that pass               | `expected [ Array(1) ] to deeply equal []`                 |
+| L4  | `workerOps.ts` whole, as at `8942620fe5`                | launcher, both                         | `isTeamGitError` true; not a launcher failure              |
+| L5  | `teamLandingSurfaces.test.ts` whole, as at `8942620fe5` | surfaces: headless, ACP, both governed | the hosted failures, `[ 'open' ]` and `[]`                 |
+| L6  | git's own exit no longer a TeamGitError                 | surfaces, still reads git's own answer | `Governed command failed` for `exitCode: 128`              |
+| L7  | a failed check in a landing's own folder is ignored     | checks, a check that fails             | `status: 'merged'`                                         |
+
+Windows, `temp/drillsw.mjs`:
+
+| #   | Broken on purpose                                              | Red in                                        | What it said                                                                          |
+| --- | -------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------- |
+| W20 | `workerOps.ts` whole, as at `8942620fe5`                       | launcher, both                                | `isTeamGitError` true; not a launcher failure                                         |
+| W21 | a one-use folder on Windows too                                | checks, checks that pass                      | no `check-slots` folder                                                               |
+| W22 | the port ignores a check's exit, at its new place              | checks, a check that fails                    | `status: 'merged'`                                                                    |
+| W23 | git's own exit no longer a TeamGitError                        | surfaces, still reads git's own answer        | `Governed command failed` for `exitCode: 128`                                         |
+| W24 | `stagingCopy.ts` whole, as at `c6e1a64ef8`: a process per file | snapshot: one process, goes away, larger tree | `expected 43 to be 1`; `{ calls: 284, hashes: 174 }` for `{ calls: 124, hashes: 14 }` |
+| W25 | a file that goes away stops the whole snapshot                 | snapshot, leaves out a file                   | the rejection                                                                         |
+| W26 | the list hashes through the repository's filters               | snapshot, one process                         | the blob differs from git's raw one                                                   |
+
+**Suites and gates on the final code.**
+
+Windows, this PC, named files, `--maxWorkers=4`, each exit 0: at `794d3cd`, `teamGitLauncher`,
+`teamLandingSnapshot`, `teamLandingChecks`, `teamLandingSurfaces`, `teamLandingProduct`, `teamLandingKilled`,
+`teamLandingPause`, `teamHostRealParts`, `teamEnginePorts`, `teamMergePlan`, `teamMergeCardLanding`,
+`acpTeamSession`: 12 files, 96 passed, 1 skipped. `teamProcessWorkers`, `teamCheckSlotsGoverned`, `execTeamSweep`,
+`execTeamLedger`, `execTeamFlags`, `teamAvailability`, `acpTeamContracts`, `acpTeamServe`, `teamChunkPackaging`,
+`mhpContract`, `manifest`, `pathGuardSpawns`: 12 files, 199 passed, 12 skipped. The last code commit only moved two
+catches behind named guards; at `1aeb8ac571` the four suites over them ran again, exit 0, 19 passed, 1 skipped, and
+W20, W23, W25, L4 and L6 went red again.
+
+The static job's gates, one pass on `1aeb8ac571`, Node 22.23.4, exit codes: `format:check` 0, `lint` 0, `typecheck` 0, `check:badges` 0, `check:tokens` 0, `check:art` 0, `check:l10n` 0, `check:reference` 0, `check:host-api` 0, `check:mhp` 0, `check:plan` 0, `check:roadmap` 0, `check:editor-matrix` 0, `check:catches` 0, `check:usable-reply` 0, `check:wrap-up-request` 0, `check:no-output-cap` 0, `check:no-round-cap` 0, `check:workflow-scripts` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `build` 0, `security:audit` 0. Semgrep, pinned, on the three
+changed source files: 0 findings, exit 0. An earlier pass on `c91983d273` refused `check:catches` (the two new catches
+read as generic) and `check:host-api` (the new fs import in the table); `1aeb8ac571` answered both, and the catch
+baseline falls by one, the old `processTeamGit` site. The Linux build, not the Windows gates, first found the lazy
+registry naming a function I had moved. After this pass only this section changed: Prettier and `check:plan`
+ran on that commit, exit 0.
+
+Budgets, none raised, none near but the one that was: `dist/resourceGovernor.js` 124.8 of 125 KiB, unchanged.
+`dist/teamProcess.js` 367.9 of 375, `dist/teamLanding.js` 56.7 of 75, `dist/teamWorkerOps.js` 14.4 of 17,
+`dist/teamEngine.js` 93.8 of 100, `dist/extension.js` 527.9 of 600.
+
+The throwaway checkout, its Node and what the runs left in WSL's `/tmp` were removed afterwards.
+
+**Commits.** `8942620fe5` → `c6e1a64ef8` (landing checks on POSIX, the swallow, the rig) → `50fd5c644b` (the
+snapshot) → `794d3cd` (the lazy registry) → `c91983d273` (these corrections) → `1aeb8ac571` (what
+`check:catches` and `check:host-api` asked) → the commit carrying these last lines. Not pushed.
