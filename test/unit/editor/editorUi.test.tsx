@@ -93,6 +93,13 @@ function mountGroup(
   return harness
 }
 
+function mountTwoTabs(): void {
+  let state = emptyEditorGroupState()
+  state = openFileTab(state, 'one.txt', { ephemeral: false })
+  state = openFileTab(state, 'two.txt', { ephemeral: false })
+  mountGroup(state, { 'one.txt': buffer('one\n'), 'two.txt': buffer('two\n') })
+}
+
 function editorView(container: HTMLElement): EditorView {
   const textbox = container.querySelector('.cm-content')
   if (textbox === null) throw new Error('the editor content is missing')
@@ -279,10 +286,7 @@ describe('M111 ED editor group over real CodeMirror (D91.14)', () => {
   })
 
   it('closes a clean tab from its close button and moves between tabs by keyboard', async () => {
-    let state = emptyEditorGroupState()
-    state = openFileTab(state, 'one.txt', { ephemeral: false })
-    state = openFileTab(state, 'two.txt', { ephemeral: false })
-    mountGroup(state, { 'one.txt': buffer('one\n'), 'two.txt': buffer('two\n') })
+    mountTwoTabs()
     await waitFor(() => {
       expect(document.querySelector('.cm-content')?.textContent).toContain('two')
     })
@@ -300,10 +304,7 @@ describe('M111 ED editor group over real CodeMirror (D91.14)', () => {
   })
 
   it('closes the focused tab with Delete and gives the focus to the tab that follows', async () => {
-    let state = emptyEditorGroupState()
-    state = openFileTab(state, 'one.txt', { ephemeral: false })
-    state = openFileTab(state, 'two.txt', { ephemeral: false })
-    mountGroup(state, { 'one.txt': buffer('one\n'), 'two.txt': buffer('two\n') })
+    mountTwoTabs()
     const two = await screen.findByRole('tab', { name: 'two.txt' })
     expect(two).toHaveAttribute('aria-keyshortcuts', 'Delete')
     // No control inside a tab: one interactive control nested in another (run 41738951665).
